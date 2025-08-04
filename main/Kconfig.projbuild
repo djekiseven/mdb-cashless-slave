@@ -1,0 +1,36 @@
+menu "MDB Cashless Configuration"
+
+    config MDB_RX_PIN
+        int "MDB RX GPIO number"
+        range 0 48
+        default 16
+        help
+            GPIO pin для приема данных от MDB мастера (VMC).
+            
+            Некоторые GPIO используются для других целей (подключение флеш-памяти и т.д.) и не могут быть использованы.
+            
+            GPIO 35-39 только для входа, что подходит для RX пина.
+
+    config MDB_TX_PIN
+        int "MDB TX GPIO number"
+        range 0 48
+        default 17
+        help
+            GPIO pin для передачи данных на MDB мастер (VMC).
+            
+            Некоторые GPIO используются для других целей (подключение флеш-памяти и т.д.) и не могут быть использованы.
+            
+            GPIO 35-39 только для входа, поэтому не могут быть использованы как TX.
+
+    config MDB_LED_PIN
+        int "MDB LED GPIO number"
+        range 0 48
+        default 2
+        help
+            GPIO pin для индикации состояния MDB.
+            
+            Некоторые GPIO используются для других целей (подключение флеш-памяти и т.д.) и не могут быть использованы.
+            
+            GPIO 35-39 только для входа, поэтому не могут быть использованы для LED.
+
+endmenu

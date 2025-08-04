@@ -1,0 +1,10 @@
+idf_component_register(
+    SRCS 
+        "mdb_slave.c"
+        "mdb_protocol.c"
+    INCLUDE_DIRS 
+        "include"
+    REQUIRES 
+        "driver"
+        "esp_timer"
+)
