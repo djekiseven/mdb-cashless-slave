@@ -31,8 +31,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     
-    // Set initial state
-    gpio_set_level(pin_mdb_tx, 1);
+    // Set initial state (idle = 0 for MDB)
+    gpio_set_level(pin_mdb_tx, 0);
     gpio_set_level(pin_mdb_led, 0);
     
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
@@ -44,20 +44,33 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait until the RX signal is 0 with timeout
-    while (gpio_get_level(pin_mdb_rx)) {
+    // Wait until the RX signal is 1 (start bit) with timeout
+    while (!gpio_get_level(pin_mdb_rx)) {
         if (esp_timer_get_time() - start_time > timeout_us) {
-            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0");
+            ESP_LOGW(TAG, "MDB read timeout waiting for start bit");
             return 0xFFFF; // Return error code
         }
         vTaskDelay(1); // Yield to other tasks
     }
 
-    ets_delay_us(156); // Delay between bits
+    // Wait for half bit time to sample in the middle of the start bit
+    ets_delay_us(52); // Half of 104us
 
-    for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
+    // Verify we're still in the start bit
+    if (!gpio_get_level(pin_mdb_rx)) {
+        ESP_LOGW(TAG, "MDB false start bit detected");
+        return 0xFFFF;
+    }
+
+    // Wait for the rest of the start bit
+    ets_delay_us(52);
+
+    // Read 9 bits (8 data + 1 mode)
+    for (uint8_t x = 0; x < 9; x++) {
+        // Sample in the middle of the bit
+        ets_delay_us(52);
         coming_read |= (gpio_get_level(pin_mdb_rx) << x);
-        ets_delay_us(104); // 9600bps timing
+        ets_delay_us(52);
     }
 
     if (checksum)
@@ -68,16 +81,19 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
-    gpio_set_level(pin_mdb_tx, 0); // Start transmission
+    // Start bit (1)
+    gpio_set_level(pin_mdb_tx, 1);
     ets_delay_us(104);
 
-    for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
+    // Write 9 bits (8 data + 1 mode)
+    for (uint8_t x = 0; x < 9; x++) {
         gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
         ets_delay_us(104); // 9600bps timing
     }
 
-    gpio_set_level(pin_mdb_tx, 1); // End transmission
-    ets_delay_us(104);
+    // Return to idle state (0)
+    gpio_set_level(pin_mdb_tx, 0);
+    ets_delay_us(104); // Extra stop bit time for safety
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
