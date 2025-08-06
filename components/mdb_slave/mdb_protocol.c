@@ -33,8 +33,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     
-    // Enable pull-up for RX pin to ensure it reads 1 when no signal (inactive state)
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    // Enable pull-down for RX pin to ensure it reads 0 when no signal (inactive state)
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLDOWN_ONLY);
     
     // Check initial pin states
     ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
@@ -42,8 +42,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
              gpio_get_level(pin_mdb_tx),
              gpio_get_level(pin_mdb_led));
     
-    // Set initial state
-    gpio_set_level(pin_mdb_tx, 1);
+    // Set initial state - TX idle low for active high signaling
+    gpio_set_level(pin_mdb_tx, 0);
     gpio_set_level(pin_mdb_led, 0);
     
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
@@ -55,7 +55,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait for start bit (falling edge) with timeout
+    // Wait for rising edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
     int sample_count = 0;
@@ -63,9 +63,9 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
         curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 1 && curr_level == 0) {
+        if (prev_level == 0 && curr_level == 1) {
             edge_found = true;
-            ESP_LOGI(TAG, "Found falling edge after %d samples", sample_count);
+            ESP_LOGI(TAG, "Found rising edge after %d samples", sample_count);
             break;
         }
         prev_level = curr_level;
@@ -100,17 +100,17 @@ void mdb_write_9(uint16_t nth9)
 {
     ESP_LOGI(TAG, "Writing 9-bit value: 0x%03X", nth9);
 
-    gpio_set_level(pin_mdb_tx, 0); // Start transmission
+    gpio_set_level(pin_mdb_tx, 1); // Start transmission (active high)
     ets_delay_us(104);
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
         int bit = (nth9 >> x) & 1;
-        gpio_set_level(pin_mdb_tx, bit);
+        gpio_set_level(pin_mdb_tx, bit ? 1 : 0); // Active high
         ESP_LOGD(TAG, "TX bit %d: %d", x, bit);
         ets_delay_us(104); // 9600bps timing
     }
 
-    gpio_set_level(pin_mdb_tx, 1); // End transmission
+    gpio_set_level(pin_mdb_tx, 0); // End transmission (idle low)
     ets_delay_us(104);
 
     ESP_LOGI(TAG, "Finished writing 9-bit value");
