@@ -157,6 +157,8 @@ void mdb_cashless_loop(void *pvParameters)
             mdb_set_led(false);
             continue;
         }
+        
+        ESP_LOGI(TAG, "Received command: 0x%03X", coming_read);
 
         if (coming_read & BIT_MODE_SET) {
             // Check if this is addressed to us (cashless device)
@@ -182,8 +184,8 @@ void mdb_cashless_loop(void *pvParameters)
                         }
 
                         // Send ACK in response to RESET
+                        ESP_LOGI(TAG, "Sending ACK (0x00) in response to RESET");
                         mdb_write_9(ACK);
-                        ESP_LOGI(TAG, "Sent ACK in response to RESET");
 
                         machine_state = INACTIVE_STATE;
                         cashless_reset_todo = true;
@@ -240,6 +242,8 @@ void mdb_cashless_loop(void *pvParameters)
                         uint8_t checksum_ = mdb_read_9(NULL);
                         // Отмечаем переменную как намеренно неиспользуемую
                         (void)checksum_;
+                        
+                        ESP_LOGI(TAG, "Received POLL command, available_tx=%d", available_tx);
                         
                         ESP_LOGD(TAG, "MDB: POLL command received");
 
@@ -492,10 +496,11 @@ void mdb_cashless_loop(void *pvParameters)
                                 // Software version (2 bytes)
                                 mdb_payload[28] = 0x01;
                                 mdb_payload[29] = 0x00;
-                                
-                                available_tx = 30;
-                                break;
-                            }
+                                // Send ACK if no activity
+                        if (!available_tx) {
+                            ESP_LOGI(TAG, "Sending ACK (0x00) in response to POLL");
+                            mdb_write_9(ACK);
+                        }    }
                         }
                         break;
                     }
