@@ -98,16 +98,22 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
+    ESP_LOGI(TAG, "Writing 9-bit value: 0x%03X", nth9);
+
     gpio_set_level(pin_mdb_tx, 0); // Start transmission
     ets_delay_us(104);
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
-        gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
+        int bit = (nth9 >> x) & 1;
+        gpio_set_level(pin_mdb_tx, bit);
+        ESP_LOGD(TAG, "TX bit %d: %d", x, bit);
         ets_delay_us(104); // 9600bps timing
     }
 
     gpio_set_level(pin_mdb_tx, 1); // End transmission
     ets_delay_us(104);
+
+    ESP_LOGI(TAG, "Finished writing 9-bit value");
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
