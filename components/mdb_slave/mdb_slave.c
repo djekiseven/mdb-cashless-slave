@@ -154,13 +154,22 @@ void mdb_cashless_loop(void *pvParameters)
         uint8_t command = coming_read & BIT_CMD_SET;     // Команда в младших битах
         bool is_address_match = (address == 0x10);       // Наш адрес 0x10
 
-        ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X, Raw:0b%08b)", 
+        ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
                  coming_read,
                  (coming_read & BIT_MODE_SET) ? 1 : 0,
                  address,
                  is_address_match ? " [MATCH]" : "",
                  command,
-                 coming_read & 0xFF);  // Показываем бинарное представление байта данных
+                 // Показываем биты адреса (7-3)
+                 (coming_read & (1 << 7)) ? '1' : '0',
+                 (coming_read & (1 << 6)) ? '1' : '0',
+                 (coming_read & (1 << 5)) ? '1' : '0',
+                 (coming_read & (1 << 4)) ? '1' : '0',
+                 (coming_read & (1 << 3)) ? '1' : '0',
+                 // Показываем биты команды (2-0)
+                 (coming_read & (1 << 2)) ? '1' : '0',
+                 (coming_read & (1 << 1)) ? '1' : '0',
+                 (coming_read & (1 << 0)) ? '1' : '0');
 
         if (coming_read & BIT_MODE_SET) {
             uint8_t data_byte = coming_read & 0xFF;  // Только данные без mode bit
