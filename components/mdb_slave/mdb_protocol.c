@@ -71,10 +71,10 @@ uint16_t mdb_read_9(uint8_t *checksum)
         prev_level = curr_level;
         sample_count++;
 
-        if (sample_count % 1000 == 0) {
+        if (sample_count % 10000 == 0) {
             ESP_LOGD(TAG, "Waiting for falling edge, level: %d, samples: %d", curr_level, sample_count);
         }
-        ets_delay_us(10); // Sample every 10 microseconds
+        ets_delay_us(1); // Sample every 1 microsecond for more precise edge detection
     }
 
     if (!edge_found) {
