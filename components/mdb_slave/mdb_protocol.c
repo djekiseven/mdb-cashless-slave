@@ -130,7 +130,7 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGI(TAG, "Data before inversion: 0x%02X, after: 0x%02X", nth9 & 0xFF, data);
     
     // Отправляем 8 бит данных, начиная с LSB
-    for (uint8_t x = 7; x >= 0; x--) {
+    for (int8_t x = 7; x >= 0; x--) {
         int bit = (data >> x) & 1;
         gpio_set_level(pin_mdb_tx, bit);
         ESP_LOGI(TAG, "TX data bit %d: %d", 7-x, bit);
