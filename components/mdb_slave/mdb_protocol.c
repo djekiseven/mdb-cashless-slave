@@ -23,13 +23,24 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     pin_mdb_led = led_pin;
     
     // Configure GPIO pins
+    // Reset and configure pins
     gpio_reset_pin(pin_mdb_rx);
     gpio_reset_pin(pin_mdb_tx);
     gpio_reset_pin(pin_mdb_led);
     
+    // Configure pin directions
     gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+    
+    // Enable pull-up for RX pin to ensure it reads 1 when no signal (inactive state)
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    
+    // Check initial pin states
+    ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
+             gpio_get_level(pin_mdb_rx),
+             gpio_get_level(pin_mdb_tx),
+             gpio_get_level(pin_mdb_led));
     
     // Set initial state
     gpio_set_level(pin_mdb_tx, 1);
@@ -45,13 +56,16 @@ uint16_t mdb_read_9(uint8_t *checksum)
     const int64_t timeout_us = 1000000; // 1 second timeout
 
     // Wait until the RX signal is 0 with timeout
-    while (gpio_get_level(pin_mdb_rx)) {
+    int rx_level;
+    while ((rx_level = gpio_get_level(pin_mdb_rx))) {
         if (esp_timer_get_time() - start_time > timeout_us) {
-            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0");
+            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0, current level: %d", rx_level);
             return 0xFFFF; // Return error code
         }
+        ESP_LOGD(TAG, "RX pin level: %d", rx_level);
         vTaskDelay(1); // Yield to other tasks
     }
+    ESP_LOGD(TAG, "RX pin went low, level: %d", rx_level);
 
     ets_delay_us(156); // Delay between bits
 
