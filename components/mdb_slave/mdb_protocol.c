@@ -102,10 +102,23 @@ void mdb_write_9(uint16_t nth9)
 {
     uint8_t data_byte = nth9 & 0xFF;
     uint8_t mode_bit = (nth9 >> 8) & 1;
-    ESP_LOGI(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)", nth9, data_byte, mode_bit);
+
+    ESP_LOGI(TAG, "Writing value: 0x%03X (Data: 0x%02X [0b%d%d%d%d%d%d%d%d], Mode: %d)",
+             nth9, data_byte,
+             (data_byte >> 7) & 1,
+             (data_byte >> 6) & 1,
+             (data_byte >> 5) & 1,
+             (data_byte >> 4) & 1,
+             (data_byte >> 3) & 1,
+             (data_byte >> 2) & 1,
+             (data_byte >> 1) & 1,
+             data_byte & 1,
+             mode_bit);
 
     // Перед началом передачи убедимся что мы в idle (physical 1)
     gpio_set_level(pin_mdb_tx, 1);
+    ESP_LOGI(TAG, "Ensuring TX line is in idle state (physical 1)");
+    ESP_LOGI(TAG, "TX pin level before transmission: %d", gpio_get_level(pin_mdb_tx));
     ets_delay_us(104);
 
     // Start bit (физический 0)
@@ -113,13 +126,13 @@ void mdb_write_9(uint16_t nth9)
     gpio_set_level(pin_mdb_tx, 0);
     ets_delay_us(104);
 
-    // Отправляем 8 бит данных (LSB first)
+    // Отправляем 8 бит данных (MSB first)
     ESP_LOGI(TAG, "Writing data bits:");
     for (uint8_t x = 0; x < 8; x++) {
-        int bit = (data_byte >> x) & 1;
-        int physical_level = !bit;  // Инвертируем: логическая 1 -> физический 0
-        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", x, bit, physical_level);
-        gpio_set_level(pin_mdb_tx, physical_level);
+        int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
+        int pin_level = !bit_value;  // Инвертируем: логическая 1 -> физический 0
+        gpio_set_level(pin_mdb_tx, pin_level);
+        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", 7-x, bit_value, pin_level);
         ets_delay_us(104);
     }
 
@@ -132,6 +145,7 @@ void mdb_write_9(uint16_t nth9)
     // Stop bit (физическая 1) и возврат в idle
     ESP_LOGI(TAG, "Stop bit and return to idle (physical 1)");
     gpio_set_level(pin_mdb_tx, 1);
+    ESP_LOGI(TAG, "TX pin level after transmission: %d", gpio_get_level(pin_mdb_tx));
     ets_delay_us(208);  // Двойная задержка для надежности
 }
 
