@@ -15,9 +15,14 @@
 #include "esp_log.h"
 
 // MDB communication constants
-#define ACK     0x00  // Acknowledgment / Checksum correct
-#define RET     0xAA  // Retransmit previously sent data. Only VMC can send this
-#define NAK     0xFF  // Negative acknowledgment
+#define ACK_DATA    0x00  // ACK data byte
+#define RET_DATA    0xAA  // RET data byte (only VMC can send)
+#define NAK_DATA    0xFF  // NAK data byte
+
+// Для ответов периферии mode bit должен быть установлен
+#define ACK     (ACK_DATA | BIT_MODE_SET)  // ACK с mode bit
+#define RET     RET_DATA                    // RET только от VMC
+#define NAK     (NAK_DATA | BIT_MODE_SET)  // NAK с mode bit
 
 // Bit masks for MDB operations
 #define BIT_MODE_SET     0b100000000
