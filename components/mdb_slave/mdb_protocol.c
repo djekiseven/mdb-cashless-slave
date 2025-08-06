@@ -55,20 +55,32 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait until the RX signal is 0 with timeout
-    int rx_level;
+    // Wait for start bit (falling edge) with timeout
+    int prev_level = gpio_get_level(pin_mdb_rx);
+    int curr_level;
     int sample_count = 0;
-    while ((rx_level = gpio_get_level(pin_mdb_rx))) {
-        if (esp_timer_get_time() - start_time > timeout_us) {
-            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0, current level: %d, samples: %d", rx_level, sample_count);
-            return 0xFFFF; // Return error code
+    bool edge_found = false;
+
+    while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
+        curr_level = gpio_get_level(pin_mdb_rx);
+        if (prev_level == 1 && curr_level == 0) {
+            edge_found = true;
+            ESP_LOGI(TAG, "Found falling edge after %d samples", sample_count);
+            break;
         }
+        prev_level = curr_level;
         sample_count++;
+
         if (sample_count % 1000 == 0) {
-            ESP_LOGD(TAG, "RX pin still high, level: %d, samples: %d", rx_level, sample_count);
+            ESP_LOGD(TAG, "Waiting for falling edge, level: %d, samples: %d", curr_level, sample_count);
         }
+        ets_delay_us(10); // Sample every 10 microseconds
     }
-    ESP_LOGI(TAG, "RX pin went low after %d samples, level: %d", sample_count, rx_level);
+
+    if (!edge_found) {
+        ESP_LOGW(TAG, "Timeout waiting for falling edge, last level: %d, samples: %d", curr_level, sample_count);
+        return 0xFFFF;
+    }
 
     ets_delay_us(156); // Delay between bits
 
