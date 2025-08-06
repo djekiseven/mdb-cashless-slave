@@ -116,16 +116,16 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGI(TAG, "Writing data bits:");
     for (uint8_t x = 0; x < 8; x++) {
         int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
-        int pin_level = !bit_value;  // Инвертируем: логическая 1 -> физический 0
+        int pin_level = bit_value;  // Физический уровень = логическому значению
         gpio_set_level(pin_mdb_tx, pin_level);
-        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", 7-x, bit_value, pin_level);
+        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d", 7-x, bit_value, pin_level);
         ets_delay_us(104);
     }
 
     // Отправляем mode bit
-    int physical_level = !mode_bit;  // Инвертируем: логическая 1 -> физический 0
+    int physical_level = mode_bit;  // Физический уровень = логическому значению
     gpio_set_level(pin_mdb_tx, physical_level);
-    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d (after inversion)", mode_bit, physical_level);
+    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d", mode_bit, physical_level);
     ets_delay_us(104);
 
     // Stop bit (физическая 1) и возврат в idle
