@@ -7,4 +7,5 @@ idf_component_register(
     REQUIRES 
         "driver"
         "esp_timer"
+        "freertos"
 )

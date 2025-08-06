@@ -3,6 +3,9 @@
  */
 
 #include <rom/ets_sys.h>
+#include "esp_timer.h"
+#include "freertos/FreeRTOS.h"
+#include "freertos/task.h"
 #include "mdb_slave.h"
 #include "mdb_protocol.h"
 
