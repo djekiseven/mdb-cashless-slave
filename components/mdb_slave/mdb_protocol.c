@@ -55,7 +55,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait for falling edge (start bit) with timeout
+    // Wait for rising edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
     int sample_count = 0;
@@ -63,9 +63,9 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
         curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 1 && curr_level == 0) {
+        if (prev_level == 0 && curr_level == 1) {
             edge_found = true;
-            ESP_LOGI(TAG, "Found falling edge after %d samples", sample_count);
+            ESP_LOGI(TAG, "Found rising edge after %d samples", sample_count);
             break;
         }
         prev_level = curr_level;
@@ -78,7 +78,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     }
 
     if (!edge_found) {
-        ESP_LOGW(TAG, "Timeout waiting for falling edge, last level: %d, samples: %d", curr_level, sample_count);
+        ESP_LOGW(TAG, "Timeout waiting for rising edge, last level: %d, samples: %d", curr_level, sample_count);
         return 0xFFFF;
     }
 
@@ -86,7 +86,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     ets_delay_us(52); // Half of 104us (9600bps timing)
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
-        // Инвертируем считанный бит, так как используем активный высокий уровень
+        // Инвертируем бит при чтении (физический 1 = логический 0)
         coming_read |= (!gpio_get_level(pin_mdb_rx) << x);
         ets_delay_us(104); // 9600bps timing
     }
@@ -106,7 +106,7 @@ void mdb_write_9(uint16_t nth9)
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
         int bit = (nth9 >> x) & 1;
-        gpio_set_level(pin_mdb_tx, bit ? 1 : 0); // Active high
+        gpio_set_level(pin_mdb_tx, !bit); // Инвертируем бит (физический 0 = логическая 1)
         ESP_LOGD(TAG, "TX bit %d: %d", x, bit);
         ets_delay_us(104); // 9600bps timing
     }
