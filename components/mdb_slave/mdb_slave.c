@@ -149,8 +149,14 @@ void mdb_cashless_loop(void *pvParameters)
         // Checksum calculation
         uint8_t checksum = 0x00;
 
-        // Read from MDB and check if the mode bit is set
+        // Read from MDB and check for timeout or mode bit
         uint16_t coming_read = mdb_read_9(&checksum);
+        
+        if (coming_read == 0xFFFF) {
+            // Timeout occurred, reset LED and continue
+            mdb_set_led(false);
+            continue;
+        }
 
         if (coming_read & BIT_MODE_SET) {
             // Check if this is addressed to us (cashless device)

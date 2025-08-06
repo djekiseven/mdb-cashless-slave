@@ -38,10 +38,17 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
 uint16_t mdb_read_9(uint8_t *checksum)
 {
     uint16_t coming_read = 0;
+    int64_t start_time = esp_timer_get_time();
+    const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait until the RX signal is 0
-    while (gpio_get_level(pin_mdb_rx))
-        ;
+    // Wait until the RX signal is 0 with timeout
+    while (gpio_get_level(pin_mdb_rx)) {
+        if (esp_timer_get_time() - start_time > timeout_us) {
+            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0");
+            return 0xFFFF; // Return error code
+        }
+        vTaskDelay(1); // Yield to other tasks
+    }
 
     ets_delay_us(156); // Delay between bits
 
