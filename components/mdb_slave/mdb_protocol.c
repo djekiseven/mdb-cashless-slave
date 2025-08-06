@@ -69,14 +69,27 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     // Читаем 9 бит
     ESP_LOGI(TAG, "Reading bits:");
-    for (uint8_t x = 0; x < 9; x++) {
+    uint16_t mode_bit = 0;
+    uint8_t data_byte = 0;
+
+    // Сначала читаем 8 бит данных (LSB first)
+    for (uint8_t x = 0; x < 8; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
         int bit_value = !pin_level;  // Инвертируем: физический 0 -> логическая 1
-        coming_read |= (bit_value << x);  // LSB first
-        ESP_LOGI(TAG, "  Bit %d: Physical:%d Logical:%d (after inversion)", x, pin_level, bit_value);
-        ets_delay_us(104); // 9600bps timing
+        data_byte |= (bit_value << x);  // LSB first
+        ESP_LOGI(TAG, "  Data Bit %d: Physical:%d Logical:%d (after inversion)", x, pin_level, bit_value);
+        ets_delay_us(104);
     }
-    ESP_LOGI(TAG, "Final value: 0x%03X", coming_read);
+
+    // Затем читаем mode bit
+    int pin_level = gpio_get_level(pin_mdb_rx);
+    mode_bit = !pin_level;  // Инвертируем
+    ESP_LOGI(TAG, "  Mode Bit: Physical:%d Logical:%d (after inversion)", pin_level, mode_bit);
+    ets_delay_us(104);
+
+    // Собираем итоговое значение: mode bit в 9-м бите
+    coming_read = data_byte | (mode_bit << 8);
+    ESP_LOGI(TAG, "Final value: 0x%03X (Data: 0x%02X, Mode: %d)", coming_read, data_byte, mode_bit);
 
     if (checksum)
         *checksum += coming_read;
@@ -86,20 +99,30 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
-    ESP_LOGI(TAG, "Writing value: 0x%03X", nth9);
+    uint8_t data_byte = nth9 & 0xFF;
+    uint8_t mode_bit = (nth9 >> 8) & 1;
+    ESP_LOGI(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)", nth9, data_byte, mode_bit);
+
+    // Start bit (физический 0)
     ESP_LOGI(TAG, "Start bit (physical 0)");
-    gpio_set_level(pin_mdb_tx, 0); // Start bit
+    gpio_set_level(pin_mdb_tx, 0);
     ets_delay_us(104);
 
-    // Отправляем 9 бит
-    ESP_LOGI(TAG, "Writing bits:");
-    for (uint8_t x = 0; x < 9; x++) {
-        int bit = (nth9 >> x) & 1;
-        int physical_level = !bit;  // Инвертируем: логическая 1 -> физический 0
-        ESP_LOGI(TAG, "  Bit %d: Logical:%d Physical:%d (after inversion)", x, bit, physical_level);
+    // Отправляем 8 бит данных (LSB first)
+    ESP_LOGI(TAG, "Writing data bits:");
+    for (uint8_t x = 0; x < 8; x++) {
+        int bit = (data_byte >> x) & 1;
+        int physical_level = !bit;  // Инвертируем
+        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", x, bit, physical_level);
         gpio_set_level(pin_mdb_tx, physical_level);
-        ets_delay_us(104); // 9600bps timing
+        ets_delay_us(104);
     }
+
+    // Отправляем mode bit
+    int physical_level = !mode_bit;  // Инвертируем
+    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d (after inversion)", mode_bit, physical_level);
+    gpio_set_level(pin_mdb_tx, physical_level);
+    ets_delay_us(104);
 
     ESP_LOGI(TAG, "Stop bit (physical 1)");
     gpio_set_level(pin_mdb_tx, 1); // Stop bit
