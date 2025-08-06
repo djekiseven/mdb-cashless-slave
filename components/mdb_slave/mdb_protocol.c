@@ -93,20 +93,22 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Сначала читаем 8 бит данных
     ESP_LOGI(TAG, "Reading 8 data bits:");
     for (uint8_t x = 0; x < 8; x++) {
+        // Читаем с линии: физический 0 -> логическая 1
         int pin_level = gpio_get_level(pin_mdb_rx);
-        int bit_value = !pin_level;  // Инвертируем сразу: pin=0 -> value=1, pin=1 -> value=0
-        data |= (bit_value << x);  // LSB first - младший бит в младший разряд
+        int bit_value = !pin_level;
+        data |= (bit_value << x);  // LSB first
         ESP_LOGI(TAG, "  Bit %d: pin=%d -> value=%d, data=0x%02X", x, pin_level, bit_value, data);
         ets_delay_us(104);
     }
     
     // Читаем 9-й бит (бит режима)
+    // Читаем mode bit так же: физический 0 -> логическая 1
     int pin_level = gpio_get_level(pin_mdb_rx);
-    mode_bit = !pin_level;  // Инвертируем: pin=0 -> value=1, pin=1 -> value=0
+    mode_bit = !pin_level;
     ESP_LOGI(TAG, "Mode bit (9th): pin=%d -> value=%d", pin_level, mode_bit);
     ets_delay_us(104);
     
-    // Биты уже инвертированы при чтении
+    // Собираем итоговое значение
     coming_read = data | (mode_bit ? BIT_MODE_SET : 0);
     ESP_LOGI(TAG, "Final value: data=0x%02X, mode=%d -> result=0x%03X", data, mode_bit, coming_read);
     ESP_LOGI(TAG, "Read complete: 0x%03X", coming_read);
@@ -124,20 +126,20 @@ void mdb_write_9(uint16_t nth9)
     gpio_set_level(pin_mdb_tx, 0); // Start bit (logical 0 = physical 0)
     ets_delay_us(104);
 
-    // Отправляем 8 бит данных, начиная с LSB
+    // Отправляем 8 бит данных LSB first
     uint8_t data = nth9 & 0xFF;
     ESP_LOGI(TAG, "TX data: 0x%02X", data);
     
-    for (int8_t x = 7; x >= 0; x--) {
+    for (int8_t x = 0; x < 8; x++) {
         int bit = (data >> x) & 1;
-        gpio_set_level(pin_mdb_tx, !bit);  // Инвертируем при отправке
-        ESP_LOGI(TAG, "TX data bit %d: %d -> pin=%d", 7-x, bit, !bit);
+        gpio_set_level(pin_mdb_tx, !bit);  // Физический 0 = логическая 1
+        ESP_LOGI(TAG, "TX data bit %d: %d -> pin=%d", x, bit, !bit);
         ets_delay_us(104);
     }
     
-    // Затем отправляем mode bit
+    // Затем mode bit
     int mode_bit = (nth9 & BIT_MODE_SET) ? 1 : 0;
-    gpio_set_level(pin_mdb_tx, !mode_bit);  // Инвертируем при отправке
+    gpio_set_level(pin_mdb_tx, !mode_bit);  // Физический 0 = логическая 1
     ESP_LOGI(TAG, "TX mode bit: %d -> pin=%d", mode_bit, !mode_bit);
     ets_delay_us(104);
 
