@@ -33,8 +33,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     
-    // Enable pull-down for RX pin to ensure it reads 0 when no signal (inactive state)
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLDOWN_ONLY);
+    // Enable pull-up for RX pin to ensure it reads 1 when no signal (idle state for inverted UART)
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
     
     // Check initial pin states
     ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
@@ -55,13 +55,13 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Проверяем, что линия находится в idle состоянии (физический 0) достаточное время
+    // Проверяем, что линия находится в idle состоянии (физический 1) достаточное время
     int sample_count = 0;
     int idle_count = 0;
     const int MIN_IDLE_SAMPLES = 100; // Минимум 100 мкс в idle
 
     while (idle_count < MIN_IDLE_SAMPLES && (esp_timer_get_time() - start_time <= timeout_us)) {
-        if (gpio_get_level(pin_mdb_rx) == 0) {
+        if (gpio_get_level(pin_mdb_rx) == 1) {
             idle_count++;
         } else {
             idle_count = 0; // Сбрасываем счетчик если линия не в idle
@@ -86,7 +86,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Wait for falling edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
-    int sample_count = 0;
+    sample_count = 0; // Переиспользуем существующую переменную
     bool edge_found = false;
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
