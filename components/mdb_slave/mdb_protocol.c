@@ -33,8 +33,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     
-    // Enable pull-up for RX pin to ensure it reads 1 when no signal (idle state for inverted UART)
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    // Enable pull-down for RX pin (idle is physical 0 for inverted UART)
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLDOWN_ONLY);
     
     // Check initial pin states
     ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
@@ -55,13 +55,13 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Проверяем, что линия находится в idle состоянии (физический 1) достаточное время
+    // Проверяем, что линия находится в idle состоянии (физический 0) достаточное время
     int sample_count = 0;
     int idle_count = 0;
     const int MIN_IDLE_SAMPLES = 100; // Минимум 100 мкс в idle
 
     while (idle_count < MIN_IDLE_SAMPLES && (esp_timer_get_time() - start_time <= timeout_us)) {
-        if (gpio_get_level(pin_mdb_rx) == 1) {
+        if (gpio_get_level(pin_mdb_rx) == 0) {
             idle_count++;
         } else {
             idle_count = 0; // Сбрасываем счетчик если линия не в idle
@@ -91,16 +91,16 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
         curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 1 && curr_level == 0) {
+        if (prev_level == 0 && curr_level == 1) {
             edge_found = true;
-            ESP_LOGI(TAG, "Found falling edge after %d samples", sample_count);
+            ESP_LOGI(TAG, "Found rising edge (start bit) after %d samples", sample_count);
             break;
         }
         prev_level = curr_level;
         sample_count++;
 
         if (sample_count % 10000 == 0) {
-            ESP_LOGD(TAG, "Waiting for falling edge, level: %d, samples: %d", curr_level, sample_count);
+            ESP_LOGD(TAG, "Waiting for rising edge, level: %d, samples: %d", curr_level, sample_count);
         }
         ets_delay_us(1);
     }
