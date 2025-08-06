@@ -116,22 +116,27 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGI(TAG, "Writing data bits:");
     for (uint8_t x = 0; x < 8; x++) {
         int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
-        int pin_level = bit_value;  // Физический уровень = логическому значению
+        int pin_level = !bit_value;  // Инвертируем: логическая 1 -> физический 0
         gpio_set_level(pin_mdb_tx, pin_level);
-        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d", 7-x, bit_value, pin_level);
+        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (inverted)", 7-x, bit_value, pin_level);
         ets_delay_us(104);
     }
 
     // Отправляем mode bit
-    int physical_level = mode_bit;  // Физический уровень = логическому значению
+    int physical_level = !mode_bit;  // Инвертируем: логическая 1 -> физический 0
     gpio_set_level(pin_mdb_tx, physical_level);
-    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d", mode_bit, physical_level);
+    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d (inverted)", mode_bit, physical_level);
     ets_delay_us(104);
 
-    // Stop bit (физическая 1) и возврат в idle
-    ESP_LOGI(TAG, "Stop bit and return to idle (physical 1)");
+    // Stop bit (физический 0, логическая 1)
+    ESP_LOGI(TAG, "Stop bit (physical 0)");
+    gpio_set_level(pin_mdb_tx, 0);
+    ets_delay_us(104);
+
+    // Возврат в idle (физическая 1, логический 0)
+    ESP_LOGI(TAG, "Return to idle (physical 1)");
     gpio_set_level(pin_mdb_tx, 1);
-    ets_delay_us(208);  // Двойная задержка после последнего бита
+    ets_delay_us(104);  // Дополнительная задержка для стабильности
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
