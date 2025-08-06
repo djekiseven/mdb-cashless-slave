@@ -156,11 +156,13 @@ void mdb_cashless_loop(void *pvParameters)
                  coming_read & BIT_CMD_SET);      // Команда в битах 0-2
 
         if (coming_read & BIT_MODE_SET) {
-            if ((uint8_t) coming_read == ACK) {
+            uint8_t data_byte = coming_read & 0xFF;  // Только данные без mode bit
+
+            if (data_byte == ACK_DATA) {
                 ESP_LOGI(TAG, "Received ACK");
-            } else if ((uint8_t) coming_read == RET) {
+            } else if (data_byte == RET_DATA) {
                 ESP_LOGI(TAG, "Received RET");
-            } else if ((uint8_t) coming_read == NAK) {
+            } else if (data_byte == NAK_DATA) {
                 ESP_LOGI(TAG, "Received NAK");
             } else if ((coming_read & BIT_ADD_SET) == (0x10 << 3)) {  // Адрес 0x10 в битах 3-7
                 // Reset transmission availability
