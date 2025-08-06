@@ -46,8 +46,20 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_level(pin_mdb_tx, 1);
     gpio_set_level(pin_mdb_led, 0);
     
+    // Проверяем что TX действительно в high
+    int tx_level = gpio_get_level(pin_mdb_tx);
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
-    ESP_LOGI(TAG, "TX pin set to idle (physical 1)");
+    ESP_LOGI(TAG, "TX pin set to idle (physical 1), current level: %d", tx_level);
+    
+    // Если TX не в high, пробуем еще раз
+    if (tx_level == 0) {
+        ESP_LOGW(TAG, "TX pin not in idle state, retrying...");
+        gpio_set_level(pin_mdb_tx, 0);
+        ets_delay_us(100);
+        gpio_set_level(pin_mdb_tx, 1);
+        tx_level = gpio_get_level(pin_mdb_tx);
+        ESP_LOGI(TAG, "TX pin level after retry: %d", tx_level);
+    }
 }
 
 uint16_t mdb_read_9(uint8_t *checksum)
@@ -116,9 +128,26 @@ void mdb_write_9(uint16_t nth9)
              mode_bit);
 
     // Перед началом передачи убедимся что мы в idle (physical 1)
+    gpio_set_level(pin_mdb_tx, 0);
+    ets_delay_us(100);
     gpio_set_level(pin_mdb_tx, 1);
+    ets_delay_us(100);
+    
+    int tx_level = gpio_get_level(pin_mdb_tx);
     ESP_LOGI(TAG, "Ensuring TX line is in idle state (physical 1)");
-    ESP_LOGI(TAG, "TX pin level before transmission: %d", gpio_get_level(pin_mdb_tx));
+    ESP_LOGI(TAG, "TX pin level before transmission: %d", tx_level);
+    
+    if (tx_level == 0) {
+        ESP_LOGW(TAG, "TX pin not in idle state before transmission!");
+        // Пробуем еще раз
+        gpio_set_level(pin_mdb_tx, 0);
+        ets_delay_us(100);
+        gpio_set_level(pin_mdb_tx, 1);
+        ets_delay_us(100);
+        tx_level = gpio_get_level(pin_mdb_tx);
+        ESP_LOGI(TAG, "TX pin level after retry: %d", tx_level);
+    }
+    
     ets_delay_us(104);
 
     // Start bit (физический 0)
@@ -144,8 +173,25 @@ void mdb_write_9(uint16_t nth9)
 
     // Stop bit (физическая 1) и возврат в idle
     ESP_LOGI(TAG, "Stop bit and return to idle (physical 1)");
+    gpio_set_level(pin_mdb_tx, 0);
+    ets_delay_us(100);
     gpio_set_level(pin_mdb_tx, 1);
-    ESP_LOGI(TAG, "TX pin level after transmission: %d", gpio_get_level(pin_mdb_tx));
+    ets_delay_us(100);
+    
+    int final_tx_level = gpio_get_level(pin_mdb_tx);
+    ESP_LOGI(TAG, "TX pin level after transmission: %d", final_tx_level);
+    
+    if (final_tx_level == 0) {
+        ESP_LOGW(TAG, "TX pin not in idle state after transmission!");
+        // Пробуем еще раз
+        gpio_set_level(pin_mdb_tx, 0);
+        ets_delay_us(100);
+        gpio_set_level(pin_mdb_tx, 1);
+        ets_delay_us(100);
+        final_tx_level = gpio_get_level(pin_mdb_tx);
+        ESP_LOGI(TAG, "TX pin level after final retry: %d", final_tx_level);
+    }
+    
     ets_delay_us(208);  // Двойная задержка для надежности
 }
 
