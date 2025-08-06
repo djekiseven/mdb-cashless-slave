@@ -60,58 +60,16 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
     int sample_count = 0;
-    bool edge_found = false;
 
-    while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
-        curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 1 && curr_level == 0) {
-            edge_found = true;
-            ESP_LOGD(TAG, "Found start bit after %d samples", sample_count);
-            break;
-        }
-        prev_level = curr_level;
-        sample_count++;
+    ets_delay_us(156); // Задержка между битами
 
-        if (sample_count % 10000 == 0) {
-            ESP_LOGD(TAG, "Waiting for rising edge, level: %d, samples: %d", curr_level, sample_count);
-        }
-        ets_delay_us(1);
-    }
-
-    if (!edge_found) {
-        ESP_LOGW(TAG, "Timeout waiting for falling edge, last level: %d, samples: %d", curr_level, sample_count);
-        return 0xFFFF;
-    }
-
-    // Wait for half of the bit time to sample in the middle of the start bit
-    ets_delay_us(52); // Half of 104us (9600bps timing)
-
-    ESP_LOGI(TAG, "Reading 9 bits after start bit");
-    uint16_t data = 0;
-    uint16_t mode_bit = 0;
-    
-    // Сначала читаем 8 бит данных
-    ESP_LOGI(TAG, "Reading 8 data bits:");
-    for (uint8_t x = 0; x < 8; x++) {
-        // Читаем с линии: физический 0 -> логическая 1
+    // Читаем 9 бит
+    for (uint8_t x = 0; x < 9; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
-        int bit_value = !pin_level;
-        data |= (bit_value << x);  // LSB first
-        ESP_LOGI(TAG, "  Bit %d: pin=%d -> value=%d, data=0x%02X", x, pin_level, bit_value, data);
-        ets_delay_us(104);
+        int bit_value = !pin_level;  // Инвертируем: физический 0 -> логическая 1
+        coming_read |= (bit_value << x);  // LSB first
+        ets_delay_us(104); // 9600bps timing
     }
-    
-    // Читаем 9-й бит (бит режима)
-    // Читаем mode bit так же: физический 0 -> логическая 1
-    int pin_level = gpio_get_level(pin_mdb_rx);
-    mode_bit = !pin_level;
-    ESP_LOGI(TAG, "Mode bit (9th): pin=%d -> value=%d", pin_level, mode_bit);
-    ets_delay_us(104);
-    
-    // Собираем итоговое значение
-    coming_read = data | (mode_bit ? BIT_MODE_SET : 0);
-    ESP_LOGI(TAG, "Final value: data=0x%02X, mode=%d -> result=0x%03X", data, mode_bit, coming_read);
-    ESP_LOGI(TAG, "Read complete: 0x%03X", coming_read);
 
     if (checksum)
         *checksum += coming_read;
@@ -121,32 +79,18 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
-    ESP_LOGI(TAG, "Writing 9-bit value: 0x%03X", nth9);
-
-    gpio_set_level(pin_mdb_tx, 0); // Start bit (logical 0 = physical 0)
+    gpio_set_level(pin_mdb_tx, 0); // Начало передачи
     ets_delay_us(104);
 
-    // Отправляем 8 бит данных LSB first
-    uint8_t data = nth9 & 0xFF;
-    ESP_LOGI(TAG, "TX data: 0x%02X", data);
-    
-    for (int8_t x = 0; x < 8; x++) {
-        int bit = (data >> x) & 1;
-        gpio_set_level(pin_mdb_tx, !bit);  // Физический 0 = логическая 1
-        ESP_LOGI(TAG, "TX data bit %d: %d -> pin=%d", x, bit, !bit);
-        ets_delay_us(104);
+    // Отправляем 9 бит
+    for (uint8_t x = 0; x < 9; x++) {
+        int bit = (nth9 >> x) & 1;
+        gpio_set_level(pin_mdb_tx, !bit);  // Инвертируем: логическая 1 -> физический 0
+        ets_delay_us(104); // 9600bps timing
     }
-    
-    // Затем mode bit
-    int mode_bit = (nth9 & BIT_MODE_SET) ? 1 : 0;
-    gpio_set_level(pin_mdb_tx, !mode_bit);  // Физический 0 = логическая 1
-    ESP_LOGI(TAG, "TX mode bit: %d -> pin=%d", mode_bit, !mode_bit);
-    ets_delay_us(104);
 
-    gpio_set_level(pin_mdb_tx, 1); // Stop bit (logical 1 = physical 1)
+    gpio_set_level(pin_mdb_tx, 1); // Конец передачи
     ets_delay_us(104);
-
-    ESP_LOGI(TAG, "Finished writing 9-bit value");
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)

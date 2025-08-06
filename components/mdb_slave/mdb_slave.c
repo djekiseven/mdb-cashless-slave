@@ -139,51 +139,43 @@ void mdb_deny_vend(void)
 
 void mdb_cashless_loop(void *pvParameters)
 {
+    // Declaration of the current MDB session structure
+    struct flow_mdb_session_msg_t mdbCurrentSession;
+
     // Payload buffer and available transmission flag
     uint8_t mdb_payload[32];
     uint8_t available_tx = 0;
-    
-    ESP_LOGI(TAG, "MDB cashless loop started");
 
     for (;;) {
         // Checksum calculation
         uint8_t checksum = 0x00;
 
-        // Read from MDB and check for timeout or mode bit
+        // Read from MDB and check if the mode bit is set
         uint16_t coming_read = mdb_read_9(&checksum);
-        
-        if (coming_read == 0xFFFF) {
-            // Timeout occurred, reset LED and continue
-            mdb_set_led(false);
-            continue;
-        }
-        
+
         ESP_LOGI(TAG, "Received command: 0x%03X", coming_read);
 
         if (coming_read & BIT_MODE_SET) {
-            // Check if this is addressed to us (cashless device)
-            if ((coming_read & BIT_ADD_SET) == (0x10 << 3)) {  // Проверяем что это адрес кэшлесса (0x10 в битах 3-7)
+            if ((uint8_t) coming_read == ACK) {
+                ESP_LOGI(TAG, "Received ACK");
+            } else if ((uint8_t) coming_read == RET) {
+                ESP_LOGI(TAG, "Received RET");
+            } else if ((uint8_t) coming_read == NAK) {
+                ESP_LOGI(TAG, "Received NAK");
+            } else if ((coming_read & BIT_ADD_SET) == 0x10) {
                 // Reset transmission availability
                 available_tx = 0;
-                
-                // Turn on LED to indicate activity
-                mdb_set_led(true);
                 
                 // Command decoding based on incoming data
                 switch (coming_read & BIT_CMD_SET) {
                     case RESET: {
                         uint8_t checksum_ = mdb_read_9(NULL);
-                        // Отмечаем переменную как намеренно неиспользуемую
-                        (void)checksum_;
-                        
                         ESP_LOGI(TAG, "MDB: RESET command received");
 
                         if (machine_state == VEND_STATE) {
-                            // Reset during VEND_STATE is interpreted as VEND_SUCCESS
                             ESP_LOGI(TAG, "Reset during VEND_STATE, treating as VEND_SUCCESS");
                         }
 
-                        // Send ACK in response to RESET
                         ESP_LOGI(TAG, "Sending ACK (0x00) in response to RESET");
                         mdb_write_9(ACK);
 
