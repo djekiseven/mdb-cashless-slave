@@ -94,7 +94,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     ESP_LOGI(TAG, "Reading 8 data bits:");
     for (uint8_t x = 0; x < 8; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
-        int bit_value = !pin_level;  // Инвертируем биты для MDB
+        int bit_value = pin_level;  // pin=1 значит 1, pin=0 значит 0
         data |= (bit_value << (7-x));  // LSB first - младший бит идет первым
         ESP_LOGI(TAG, "  Bit %d: pin=%d -> value=%d, data=0x%02X", x, pin_level, bit_value, data);
         ets_delay_us(104);
@@ -102,7 +102,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     
     // Читаем 9-й бит (бит режима)
     int pin_level = gpio_get_level(pin_mdb_rx);
-    mode_bit = !pin_level;  // Инвертируем mode bit для MDB
+    mode_bit = pin_level;  // pin=1 значит 1, pin=0 значит 0
     ESP_LOGI(TAG, "Mode bit (9th): pin=%d -> value=%d", pin_level, mode_bit);
     ets_delay_us(104);
     
