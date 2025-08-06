@@ -35,41 +35,11 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     gpio_set_level(pin_mdb_led, 0);
-        .pull_up_en = GPIO_PULLUP_DISABLE,
-        .pull_down_en = GPIO_PULLDOWN_DISABLE,
-        .intr_type = GPIO_INTR_DISABLE
-    };
-    
-    gpio_config(&rx_conf);
-    gpio_config(&tx_conf);
-    gpio_config(&led_conf);
     
     // Проверка начального состояния пинов
-    ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
-             gpio_get_level(pin_mdb_rx),
-             gpio_get_level(pin_mdb_tx),
-             gpio_get_level(pin_mdb_led));
-    
-    // Установка начального состояния - TX idle high (physical 1)
-    gpio_set_level(pin_mdb_tx, 0);
-    ets_delay_us(100);
-    gpio_set_level(pin_mdb_tx, 1);
-    gpio_set_level(pin_mdb_led, 0);
-    
-    // Проверяем что TX действительно в high
     int tx_level = gpio_get_level(pin_mdb_tx);
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
-    ESP_LOGI(TAG, "TX pin set to idle (physical 1), current level: %d", tx_level);
-    
-    // Если TX не в high, пробуем еще раз
-    if (tx_level == 0) {
-        ESP_LOGW(TAG, "TX pin not in idle state, retrying...");
-        gpio_set_level(pin_mdb_tx, 0);
-        ets_delay_us(100);
-        gpio_set_level(pin_mdb_tx, 1);
-        tx_level = gpio_get_level(pin_mdb_tx);
-        ESP_LOGI(TAG, "TX pin level after retry: %d", tx_level);
-    }
+    ESP_LOGI(TAG, "TX pin level: %d", tx_level);
 }
 
 uint16_t mdb_read_9(uint8_t *checksum)
@@ -137,13 +107,6 @@ void mdb_write_9(uint16_t nth9)
              data_byte & 1,
              mode_bit);
 
-    // Set TX line to idle state (physical 1) before starting
-    ESP_LOGI(TAG, "Ensuring TX line is in idle state (physical 1)");
-    gpio_set_level(pin_mdb_tx, 1);
-    ets_delay_us(104);
-    
-    ets_delay_us(104);
-
     // Start bit (физический 0)
     ESP_LOGI(TAG, "Start bit (physical 0)");
     gpio_set_level(pin_mdb_tx, 0);
@@ -168,9 +131,7 @@ void mdb_write_9(uint16_t nth9)
     // Stop bit (физическая 1) и возврат в idle
     ESP_LOGI(TAG, "Stop bit and return to idle (physical 1)");
     gpio_set_level(pin_mdb_tx, 1);
-    ets_delay_us(104);
-    
-    ets_delay_us(208);  // Двойная задержка для надежности
+    ets_delay_us(208);  // Двойная задержка после последнего бита
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
