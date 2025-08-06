@@ -67,7 +67,6 @@ uint16_t mdb_read_9(uint8_t *checksum)
         if (sample_count % 1000 == 0) {
             ESP_LOGD(TAG, "RX pin still high, level: %d, samples: %d", rx_level, sample_count);
         }
-        ets_delay_us(10); // Sample every 10 microseconds
     }
     ESP_LOGI(TAG, "RX pin went low after %d samples, level: %d", sample_count, rx_level);
 
