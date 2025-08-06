@@ -22,18 +22,22 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     pin_mdb_tx = tx_pin;
     pin_mdb_led = led_pin;
     
-    // Настройка GPIO пинов
+    // Initialize GPIO pins
     gpio_reset_pin(pin_mdb_rx);
     gpio_reset_pin(pin_mdb_tx);
     gpio_reset_pin(pin_mdb_led);
     
     gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
-    
-    gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
-    gpio_set_level(pin_mdb_tx, 1);  // Устанавливаем TX в idle (physical 1)
-    
+    gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT_OD);  // Open-drain output
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+
+    // Configure pull-up/down
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(pin_mdb_tx, GPIO_FLOATING);       // No internal pull-up
+    gpio_set_pull_mode(pin_mdb_led, GPIO_FLOATING);
+
+    // Set initial pin states
+    gpio_set_level(pin_mdb_tx, 1);  // High = floating (pulled up externally)
     gpio_set_level(pin_mdb_led, 0);
     
     // Проверка начального состояния пинов

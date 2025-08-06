@@ -181,6 +181,11 @@ void mdb_cashless_loop(void *pvParameters)
             } else if (data_byte == NAK_DATA) {
                 ESP_LOGI(TAG, "Received NAK");
             } else if (address == 0x10) {  // Проверяем что это наш адрес
+                // Отправляем ACK на каждую команду для нас
+                ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
+                mdb_write_9(ACK);
+                ESP_LOGI(TAG, "ACK sent");
+
                 // Reset transmission availability
                 available_tx = 0;
                 
