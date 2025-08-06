@@ -22,27 +22,50 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     pin_mdb_tx = tx_pin;
     pin_mdb_led = led_pin;
     
-    // Configure GPIO pins
-    // Reset and configure pins
+    // Настройка GPIO пинов
+    // Сброс и конфигурация пинов
     gpio_reset_pin(pin_mdb_rx);
     gpio_reset_pin(pin_mdb_tx);
     gpio_reset_pin(pin_mdb_led);
     
-    // Configure pin directions
-    gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-    gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
-    gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
+    // Настройка направления пинов
+    gpio_config_t rx_conf = {
+        .pin_bit_mask = (1ULL << pin_mdb_rx),
+        .mode = GPIO_MODE_INPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
     
-    // Enable pull-up for RX pin (idle is physical 1)
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    gpio_config_t tx_conf = {
+        .pin_bit_mask = (1ULL << pin_mdb_tx),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_ENABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
     
-    // Check initial pin states
+    gpio_config_t led_conf = {
+        .pin_bit_mask = (1ULL << pin_mdb_led),
+        .mode = GPIO_MODE_OUTPUT,
+        .pull_up_en = GPIO_PULLUP_DISABLE,
+        .pull_down_en = GPIO_PULLDOWN_DISABLE,
+        .intr_type = GPIO_INTR_DISABLE
+    };
+    
+    gpio_config(&rx_conf);
+    gpio_config(&tx_conf);
+    gpio_config(&led_conf);
+    
+    // Проверка начального состояния пинов
     ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
              gpio_get_level(pin_mdb_rx),
              gpio_get_level(pin_mdb_tx),
              gpio_get_level(pin_mdb_led));
     
-    // Set initial state - TX idle high (physical 1)
+    // Установка начального состояния - TX idle high (physical 1)
+    gpio_set_level(pin_mdb_tx, 0);
+    ets_delay_us(100);
     gpio_set_level(pin_mdb_tx, 1);
     gpio_set_level(pin_mdb_led, 0);
     
@@ -128,24 +151,25 @@ void mdb_write_9(uint16_t nth9)
              mode_bit);
 
     // Перед началом передачи убедимся что мы в idle (physical 1)
-    gpio_set_level(pin_mdb_tx, 0);
-    ets_delay_us(100);
-    gpio_set_level(pin_mdb_tx, 1);
-    ets_delay_us(100);
-    
-    int tx_level = gpio_get_level(pin_mdb_tx);
     ESP_LOGI(TAG, "Ensuring TX line is in idle state (physical 1)");
-    ESP_LOGI(TAG, "TX pin level before transmission: %d", tx_level);
     
-    if (tx_level == 0) {
-        ESP_LOGW(TAG, "TX pin not in idle state before transmission!");
-        // Пробуем еще раз
+    // Пробуем переключить TX линию в high несколько раз
+    for (int i = 0; i < 3; i++) {
         gpio_set_level(pin_mdb_tx, 0);
         ets_delay_us(100);
         gpio_set_level(pin_mdb_tx, 1);
         ets_delay_us(100);
-        tx_level = gpio_get_level(pin_mdb_tx);
-        ESP_LOGI(TAG, "TX pin level after retry: %d", tx_level);
+        
+        int tx_level = gpio_get_level(pin_mdb_tx);
+        ESP_LOGI(TAG, "TX pin level (attempt %d): %d", i+1, tx_level);
+        
+        if (tx_level == 1) {
+            break;
+        }
+        
+        if (i == 2) {
+            ESP_LOGE(TAG, "Failed to set TX line to idle state after 3 attempts!");
+        }
     }
     
     ets_delay_us(104);
@@ -160,36 +184,67 @@ void mdb_write_9(uint16_t nth9)
     for (uint8_t x = 0; x < 8; x++) {
         int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
         int pin_level = !bit_value;  // Инвертируем: логическая 1 -> физический 0
-        gpio_set_level(pin_mdb_tx, pin_level);
-        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", 7-x, bit_value, pin_level);
-        ets_delay_us(104);
+        
+        // Пробуем установить бит несколько раз
+        for (int i = 0; i < 3; i++) {
+            gpio_set_level(pin_mdb_tx, pin_level);
+            ets_delay_us(10);
+            int actual_level = gpio_get_level(pin_mdb_tx);
+            
+            if (actual_level == pin_level) {
+                break;
+            }
+            
+            if (i == 2) {
+                ESP_LOGW(TAG, "  Failed to set bit %d to physical level %d!", 7-x, pin_level);
+            }
+        }
+        
+        ESP_LOGI(TAG, "  Data Bit %d: Logical:%d Physical:%d (after inversion)", 7-x, bit_value, gpio_get_level(pin_mdb_tx));
+        ets_delay_us(94);  // 104 - 10 = 94 (учитываем задержку при установке)
     }
 
     // Отправляем mode bit
     int physical_level = !mode_bit;  // Инвертируем: логическая 1 -> физический 0
-    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d (after inversion)", mode_bit, physical_level);
-    gpio_set_level(pin_mdb_tx, physical_level);
-    ets_delay_us(104);
+    
+    // Пробуем установить mode bit несколько раз
+    for (int i = 0; i < 3; i++) {
+        gpio_set_level(pin_mdb_tx, physical_level);
+        ets_delay_us(10);
+        int actual_level = gpio_get_level(pin_mdb_tx);
+        
+        if (actual_level == physical_level) {
+            break;
+        }
+        
+        if (i == 2) {
+            ESP_LOGW(TAG, "  Failed to set mode bit to physical level %d!", physical_level);
+        }
+    }
+    
+    ESP_LOGI(TAG, "  Mode Bit: Logical:%d Physical:%d (after inversion)", mode_bit, gpio_get_level(pin_mdb_tx));
+    ets_delay_us(94);
 
     // Stop bit (физическая 1) и возврат в idle
     ESP_LOGI(TAG, "Stop bit and return to idle (physical 1)");
-    gpio_set_level(pin_mdb_tx, 0);
-    ets_delay_us(100);
-    gpio_set_level(pin_mdb_tx, 1);
-    ets_delay_us(100);
     
-    int final_tx_level = gpio_get_level(pin_mdb_tx);
-    ESP_LOGI(TAG, "TX pin level after transmission: %d", final_tx_level);
-    
-    if (final_tx_level == 0) {
-        ESP_LOGW(TAG, "TX pin not in idle state after transmission!");
-        // Пробуем еще раз
+    // Пробуем переключить TX линию в high несколько раз
+    for (int i = 0; i < 3; i++) {
         gpio_set_level(pin_mdb_tx, 0);
         ets_delay_us(100);
         gpio_set_level(pin_mdb_tx, 1);
         ets_delay_us(100);
-        final_tx_level = gpio_get_level(pin_mdb_tx);
-        ESP_LOGI(TAG, "TX pin level after final retry: %d", final_tx_level);
+        
+        int final_tx_level = gpio_get_level(pin_mdb_tx);
+        ESP_LOGI(TAG, "TX pin level (attempt %d): %d", i+1, final_tx_level);
+        
+        if (final_tx_level == 1) {
+            break;
+        }
+        
+        if (i == 2) {
+            ESP_LOGE(TAG, "Failed to set TX line to idle state after 3 attempts!");
+        }
     }
     
     ets_delay_us(208);  // Двойная задержка для надежности
