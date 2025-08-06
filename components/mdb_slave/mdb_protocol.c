@@ -59,7 +59,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Wait for falling edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
-    sample_count = 0; // Переиспользуем существующую переменную
+    int sample_count = 0;
     bool edge_found = false;
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
