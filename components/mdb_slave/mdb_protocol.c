@@ -73,12 +73,12 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t mode_bit = 0;
     uint8_t data_byte = 0;
 
-    // Сначала читаем 8 бит данных (LSB first)
+    // Сначала читаем 8 бит данных (MSB first)
     for (uint8_t x = 0; x < 8; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
         int bit_value = !pin_level;  // Инвертируем: физический 0 -> логическая 1
-        data_byte |= (bit_value << x);  // LSB first
-        ESP_LOGI(TAG, "  Data Bit %d: Physical:%d Logical:%d (after inversion)", x, pin_level, bit_value);
+        data_byte |= (bit_value << (7 - x));  // MSB first
+        ESP_LOGI(TAG, "  Data Bit %d: Physical:%d Logical:%d (after inversion)", 7-x, pin_level, bit_value);
         ets_delay_us(104);
     }
 
