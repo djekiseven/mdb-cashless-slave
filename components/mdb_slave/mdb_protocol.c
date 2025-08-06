@@ -55,7 +55,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait for rising edge (start bit) with timeout
+    // Wait for falling edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
     int sample_count = 0;
@@ -63,9 +63,9 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
         curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 0 && curr_level == 1) {
+        if (prev_level == 1 && curr_level == 0) {
             edge_found = true;
-            ESP_LOGI(TAG, "Found rising edge after %d samples", sample_count);
+            ESP_LOGI(TAG, "Found falling edge after %d samples", sample_count);
             break;
         }
         prev_level = curr_level;
@@ -86,7 +86,8 @@ uint16_t mdb_read_9(uint8_t *checksum)
     ets_delay_us(52); // Half of 104us (9600bps timing)
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
-        coming_read |= (gpio_get_level(pin_mdb_rx) << x);
+        // Инвертируем считанный бит, так как используем активный высокий уровень
+        coming_read |= (!gpio_get_level(pin_mdb_rx) << x);
         ets_delay_us(104); // 9600bps timing
     }
 
