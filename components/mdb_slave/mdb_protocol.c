@@ -44,8 +44,8 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait until the RX signal is 1 (start bit) with timeout
-    while (!gpio_get_level(pin_mdb_rx)) {
+    // Wait for start bit (transition from idle 0 to 1)
+    while (gpio_get_level(pin_mdb_rx) == 0) {
         if (esp_timer_get_time() - start_time > timeout_us) {
             ESP_LOGW(TAG, "MDB read timeout waiting for start bit");
             return 0xFFFF; // Return error code
@@ -56,8 +56,8 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Wait for half bit time to sample in the middle of the start bit
     ets_delay_us(52); // Half of 104us
 
-    // Verify we're still in the start bit
-    if (!gpio_get_level(pin_mdb_rx)) {
+    // Verify we're still in the start bit (should still be 1)
+    if (gpio_get_level(pin_mdb_rx) == 0) {
         ESP_LOGW(TAG, "MDB false start bit detected");
         return 0xFFFF;
     }
@@ -65,7 +65,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Wait for the rest of the start bit
     ets_delay_us(52);
 
-    // Read 9 bits (8 data + 1 mode)
+    // Read 9 bits (8 data + 1 mode) - LSB first
     for (uint8_t x = 0; x < 9; x++) {
         // Sample in the middle of the bit
         ets_delay_us(52);
@@ -85,7 +85,7 @@ void mdb_write_9(uint16_t nth9)
     gpio_set_level(pin_mdb_tx, 1);
     ets_delay_us(104);
 
-    // Write 9 bits (8 data + 1 mode)
+    // Write 9 bits (8 data + 1 mode) - LSB first
     for (uint8_t x = 0; x < 9; x++) {
         gpio_set_level(pin_mdb_tx, (nth9 >> x) & 1);
         ets_delay_us(104); // 9600bps timing
