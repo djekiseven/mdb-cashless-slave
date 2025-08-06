@@ -95,7 +95,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     for (uint8_t x = 0; x < 8; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
         int bit_value = !pin_level;  // Инвертируем сразу: pin=0 -> value=1, pin=1 -> value=0
-        data |= (bit_value << (7-x));  // LSB first - младший бит идет первым
+        data |= (bit_value << x);  // LSB first - младший бит в младший разряд
         ESP_LOGI(TAG, "  Bit %d: pin=%d -> value=%d, data=0x%02X", x, pin_level, bit_value, data);
         ets_delay_us(104);
     }
