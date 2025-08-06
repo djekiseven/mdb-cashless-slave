@@ -87,13 +87,26 @@ uint16_t mdb_read_9(uint8_t *checksum)
     ets_delay_us(52); // Half of 104us (9600bps timing)
 
     ESP_LOGD(TAG, "Reading 9 bits after start bit");
-    for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
+    uint16_t data = 0;
+    uint16_t mode_bit = 0;
+    
+    // Сначала читаем 8 бит данных
+    for (uint8_t x = 0; x < 8; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
         int bit_value = pin_level;  // Не инвертируем - физический уровень = логическому
-        coming_read |= (bit_value << x);
-        ESP_LOGD(TAG, "Bit %d: pin=%d, value=%d", x, pin_level, bit_value);
-        ets_delay_us(104); // 9600bps timing
+        data |= (bit_value << x);
+        ESP_LOGD(TAG, "Data bit %d: pin=%d, value=%d", x, pin_level, bit_value);
+        ets_delay_us(104);
     }
+    
+    // Читаем 9-й бит (бит режима)
+    int pin_level = gpio_get_level(pin_mdb_rx);
+    mode_bit = pin_level;
+    ESP_LOGD(TAG, "Mode bit: pin=%d, value=%d", pin_level, mode_bit);
+    ets_delay_us(104);
+    
+    // Собираем итоговое значение: mode_bit в старшем бите
+    coming_read = data | (mode_bit ? BIT_MODE_SET : 0);
     ESP_LOGI(TAG, "Read complete: 0x%03X", coming_read);
 
     if (checksum)
