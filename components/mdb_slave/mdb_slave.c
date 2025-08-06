@@ -150,7 +150,10 @@ void mdb_cashless_loop(void *pvParameters)
         // Read from MDB and check if the mode bit is set
         uint16_t coming_read = mdb_read_9(&checksum);
 
-        ESP_LOGI(TAG, "Received command: 0x%03X", coming_read);
+        ESP_LOGI(TAG, "Received command: 0x%03X (Address: 0x%02X, Command: 0x%02X)", 
+                 coming_read, 
+                 (coming_read & BIT_ADD_SET) >> 3,  // Адрес в битах 3-7
+                 coming_read & BIT_CMD_SET);      // Команда в битах 0-2
 
         if (coming_read & BIT_MODE_SET) {
             if ((uint8_t) coming_read == ACK) {
@@ -159,7 +162,7 @@ void mdb_cashless_loop(void *pvParameters)
                 ESP_LOGI(TAG, "Received RET");
             } else if ((uint8_t) coming_read == NAK) {
                 ESP_LOGI(TAG, "Received NAK");
-            } else if ((coming_read & BIT_ADD_SET) == 0x10) {
+            } else if ((coming_read & BIT_ADD_SET) == (0x10 << 3)) {  // Адрес 0x10 в битах 3-7
                 // Reset transmission availability
                 available_tx = 0;
                 

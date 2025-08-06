@@ -54,8 +54,15 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Wait for start bit (falling edge 1->0)
-    while (gpio_get_level(pin_mdb_rx));
+    // Ждем idle (физическая 1)
+    while (!gpio_get_level(pin_mdb_rx)) {
+        ets_delay_us(10);
+    }
+
+    // Ждем start bit (переход 1->0)
+    while (gpio_get_level(pin_mdb_rx)) {
+        ets_delay_us(10);
+    }
     ESP_LOGI(TAG, "Start bit detected");
 
     ets_delay_us(156); // Delay between bits
