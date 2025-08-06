@@ -55,10 +55,26 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Wait for rising edge (start bit) with timeout
-    int prev_level = gpio_get_level(pin_mdb_rx);
-    int curr_level = prev_level; // Initialize with current pin state
+    // Сначала ждем idle состояния (физический 0)
     int sample_count = 0;
+    while (gpio_get_level(pin_mdb_rx) == 1 && (esp_timer_get_time() - start_time <= timeout_us)) {
+        if (sample_count % 10000 == 0) {
+            ESP_LOGD(TAG, "Waiting for idle state (0), current level: 1, samples: %d", sample_count);
+        }
+        sample_count++;
+        ets_delay_us(1);
+    }
+
+    if (gpio_get_level(pin_mdb_rx) == 1) {
+        ESP_LOGW(TAG, "Timeout waiting for idle state, pin stuck at 1, samples: %d", sample_count);
+        return 0xFFFF;
+    }
+
+    // Теперь ждем rising edge (start bit) с новым таймаутом
+    start_time = esp_timer_get_time(); // Сбрасываем таймер
+    int prev_level = gpio_get_level(pin_mdb_rx);
+    int curr_level = prev_level;
+    sample_count = 0;
     bool edge_found = false;
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
@@ -72,9 +88,9 @@ uint16_t mdb_read_9(uint8_t *checksum)
         sample_count++;
 
         if (sample_count % 10000 == 0) {
-            ESP_LOGD(TAG, "Waiting for falling edge, level: %d, samples: %d", curr_level, sample_count);
+            ESP_LOGD(TAG, "Waiting for rising edge, level: %d, samples: %d", curr_level, sample_count);
         }
-        ets_delay_us(1); // Sample every 1 microsecond for more precise edge detection
+        ets_delay_us(1);
     }
 
     if (!edge_found) {
