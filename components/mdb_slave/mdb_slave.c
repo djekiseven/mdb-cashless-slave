@@ -161,16 +161,14 @@ void mdb_cashless_loop(void *pvParameters)
         ESP_LOGI(TAG, "Received command: 0x%03X", coming_read);
 
         if (coming_read & BIT_MODE_SET) {
-            // Check if this is addressed to us (cashless device)
-            if ((coming_read & BIT_ADD_SET) == 0x10) {
-                // Reset transmission availability
-                available_tx = 0;
-                
-                // Turn on LED to indicate activity
-                mdb_set_led(true);
-                
-                // Command decoding based on incoming data
-                switch (coming_read & BIT_CMD_SET) {
+            // Reset transmission availability
+            available_tx = 0;
+                    
+            // Turn on LED to indicate activity
+            mdb_set_led(true);
+    
+            // Command decoding based on incoming data
+            switch (coming_read & BIT_CMD_SET) {
                     case RESET: {
                         uint8_t checksum_ = mdb_read_9(NULL);
                         // Отмечаем переменную как намеренно неиспользуемую
@@ -257,9 +255,8 @@ void mdb_cashless_loop(void *pvParameters)
                         } else if (cashless_reset_todo) {
                             // Just reset
                             cashless_reset_todo = false;
-                            mdb_payload[0] = 0x00;
-                            available_tx = 1;
-                            ESP_LOGI(TAG, "MDB: Responding with JUST-RESET");
+                            ESP_LOGI(TAG, "MDB: Sending ACK (0x00) in response to POLL");
+                            mdb_write_9(ACK);
 
                         } else if (vend_approved_todo) {
                             // Vend approved
