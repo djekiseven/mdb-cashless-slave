@@ -33,8 +33,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
     
-    // Enable pull-down for RX pin (idle is physical 0 for inverted UART)
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLDOWN_ONLY);
+    // Enable pull-up for RX pin (idle is physical 1)
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
     
     // Check initial pin states
     ESP_LOGI(TAG, "Initial pin states - RX:%d, TX:%d, LED:%d", 
@@ -42,8 +42,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
              gpio_get_level(pin_mdb_tx),
              gpio_get_level(pin_mdb_led));
     
-    // Set initial state - TX idle low for inverted UART (logical 1 = physical 0)
-    gpio_set_level(pin_mdb_tx, 0);
+    // Set initial state - TX idle high (logical 1 = physical 1)
+    gpio_set_level(pin_mdb_tx, 1);
     gpio_set_level(pin_mdb_led, 0);
     
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
@@ -55,34 +55,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     int64_t start_time = esp_timer_get_time();
     const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Проверяем, что линия находится в idle состоянии (физический 0) достаточное время
-    int sample_count = 0;
-    int idle_count = 0;
-    const int MIN_IDLE_SAMPLES = 100; // Минимум 100 мкс в idle
-
-    while (idle_count < MIN_IDLE_SAMPLES && (esp_timer_get_time() - start_time <= timeout_us)) {
-        if (gpio_get_level(pin_mdb_rx) == 0) {
-            idle_count++;
-        } else {
-            idle_count = 0; // Сбрасываем счетчик если линия не в idle
-        }
-        
-        if (sample_count % 10000 == 0) {
-            ESP_LOGD(TAG, "Checking idle state, level: %d, idle_count: %d, samples: %d",
-                     gpio_get_level(pin_mdb_rx), idle_count, sample_count);
-        }
-        sample_count++;
-        ets_delay_us(1);
-    }
-
-    if (idle_count < MIN_IDLE_SAMPLES) {
-        ESP_LOGW(TAG, "Timeout waiting for stable idle state, samples: %d", sample_count);
-        return 0xFFFF;
-    }
-
-    ESP_LOGD(TAG, "Found stable idle state after %d samples", sample_count);
-
-    // Теперь ждем start bit (переход 0->1)
+    // Ищем start bit (переход 1->0)
     // Wait for falling edge (start bit) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
     int curr_level = prev_level; // Initialize with current pin state
@@ -91,7 +64,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     while (!edge_found && (esp_timer_get_time() - start_time <= timeout_us)) {
         curr_level = gpio_get_level(pin_mdb_rx);
-        if (prev_level == 0 && curr_level == 1) {
+        if (prev_level == 1 && curr_level == 0) {
             edge_found = true;
             ESP_LOGD(TAG, "Found start bit after %d samples", sample_count);
             break;
@@ -116,7 +89,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     ESP_LOGD(TAG, "Reading 9 bits after start bit");
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
         int pin_level = gpio_get_level(pin_mdb_rx);
-        int bit_value = !pin_level;  // Инвертируем для UART
+        int bit_value = pin_level;  // Не инвертируем - физический уровень = логическому
         coming_read |= (bit_value << x);
         ESP_LOGD(TAG, "Bit %d: pin=%d, value=%d", x, pin_level, bit_value);
         ets_delay_us(104); // 9600bps timing
@@ -133,17 +106,17 @@ void mdb_write_9(uint16_t nth9)
 {
     ESP_LOGI(TAG, "Writing 9-bit value: 0x%03X", nth9);
 
-    gpio_set_level(pin_mdb_tx, 0); // Start transmission (active low)
+    gpio_set_level(pin_mdb_tx, 0); // Start bit (logical 0 = physical 0)
     ets_delay_us(104);
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
         int bit = (nth9 >> x) & 1;
-        gpio_set_level(pin_mdb_tx, !bit); // Для инвертированного UART: логическая 1 = физический 0
-        ESP_LOGD(TAG, "TX bit %d: %d -> %d", x, bit, !bit);
+        gpio_set_level(pin_mdb_tx, bit); // Не инвертируем - физический уровень = логическому
+        ESP_LOGD(TAG, "TX bit %d: %d", x, bit);
         ets_delay_us(104); // 9600bps timing
     }
 
-    gpio_set_level(pin_mdb_tx, 1); // End transmission (idle high)
+    gpio_set_level(pin_mdb_tx, 1); // Stop bit (logical 1 = physical 1)
     ets_delay_us(104);
 
     ESP_LOGI(TAG, "Finished writing 9-bit value");
