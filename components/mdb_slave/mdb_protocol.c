@@ -42,8 +42,8 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
              gpio_get_level(pin_mdb_tx),
              gpio_get_level(pin_mdb_led));
     
-    // Set initial state - TX idle high
-    gpio_set_level(pin_mdb_tx, 1);
+    // Set initial state - TX idle low for inverted UART (logical 1 = physical 0)
+    gpio_set_level(pin_mdb_tx, 0);
     gpio_set_level(pin_mdb_led, 0);
     
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
@@ -93,7 +93,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
         curr_level = gpio_get_level(pin_mdb_rx);
         if (prev_level == 0 && curr_level == 1) {
             edge_found = true;
-            ESP_LOGI(TAG, "Found rising edge (start bit) after %d samples", sample_count);
+            ESP_LOGD(TAG, "Found start bit after %d samples", sample_count);
             break;
         }
         prev_level = curr_level;
@@ -113,11 +113,15 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Wait for half of the bit time to sample in the middle of the start bit
     ets_delay_us(52); // Half of 104us (9600bps timing)
 
+    ESP_LOGD(TAG, "Reading 9 bits after start bit");
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
-        // Для инвертированного UART: физический 0 = логическая 1
-        coming_read |= (!gpio_get_level(pin_mdb_rx) << x);
+        int pin_level = gpio_get_level(pin_mdb_rx);
+        int bit_value = !pin_level;  // Инвертируем для UART
+        coming_read |= (bit_value << x);
+        ESP_LOGD(TAG, "Bit %d: pin=%d, value=%d", x, pin_level, bit_value);
         ets_delay_us(104); // 9600bps timing
     }
+    ESP_LOGI(TAG, "Read complete: 0x%03X", coming_read);
 
     if (checksum)
         *checksum += coming_read;
