@@ -139,9 +139,6 @@ void mdb_deny_vend(void)
 
 void mdb_cashless_loop(void *pvParameters)
 {
-    // Declaration of the current MDB session structure
-    struct flow_mdb_session_msg_t mdbCurrentSession;
-
     // Payload buffer and available transmission flag
     uint8_t mdb_payload[32];
     uint8_t available_tx = 0;
@@ -169,7 +166,7 @@ void mdb_cashless_loop(void *pvParameters)
                 // Command decoding based on incoming data
                 switch (coming_read & BIT_CMD_SET) {
                     case RESET: {
-                        uint8_t checksum_ = mdb_read_9(NULL);
+                        mdb_read_9(NULL);  // Read checksum byte
                         ESP_LOGI(TAG, "MDB: RESET command received");
 
                         if (machine_state == VEND_STATE) {

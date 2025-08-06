@@ -52,16 +52,11 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
 uint16_t mdb_read_9(uint8_t *checksum)
 {
     uint16_t coming_read = 0;
-    int64_t start_time = esp_timer_get_time();
-    const int64_t timeout_us = 1000000; // 1 second timeout
 
-    // Ищем start bit (переход 1->0)
-    // Wait for falling edge (start bit) with timeout
-    int prev_level = gpio_get_level(pin_mdb_rx);
-    int curr_level = prev_level; // Initialize with current pin state
-    int sample_count = 0;
+    // Wait for start bit (falling edge 1->0)
+    while (gpio_get_level(pin_mdb_rx));
 
-    ets_delay_us(156); // Задержка между битами
+    ets_delay_us(156); // Delay between bits
 
     // Читаем 9 бит
     for (uint8_t x = 0; x < 9; x++) {
