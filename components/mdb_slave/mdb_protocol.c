@@ -57,7 +57,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     // Wait for start bit (falling edge) with timeout
     int prev_level = gpio_get_level(pin_mdb_rx);
-    int curr_level;
+    int curr_level = prev_level; // Initialize with current pin state
     int sample_count = 0;
     bool edge_found = false;
 
@@ -82,7 +82,8 @@ uint16_t mdb_read_9(uint8_t *checksum)
         return 0xFFFF;
     }
 
-    ets_delay_us(156); // Delay between bits
+    // Wait for half of the bit time to sample in the middle of the start bit
+    ets_delay_us(52); // Half of 104us (9600bps timing)
 
     for (uint8_t x = 0; x < 9 /*9bits*/; x++) {
         coming_read |= (gpio_get_level(pin_mdb_rx) << x);
