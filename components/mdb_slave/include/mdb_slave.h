@@ -25,9 +25,9 @@
 #define NAK     (NAK_DATA | BIT_MODE_SET)  // NAK с mode bit
 
 // Bit masks for MDB operations
-#define BIT_MODE_SET     0b100000000
-#define BIT_ADD_SET      0b011111000
-#define BIT_CMD_SET      0b000000111
+#define BIT_MODE_SET     0b100000000  // Mode bit (бит 8)
+#define BIT_ADD_SET      0b11111000   // Address bits (7-3)
+#define BIT_CMD_SET      0b00000111   // Command bits (2-0)
 
 // Timeout for idle state (90 seconds in microseconds)
 #define TIMEOUT_IDLE_US  (90 * 1000000ULL)
