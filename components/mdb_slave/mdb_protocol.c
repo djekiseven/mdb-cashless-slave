@@ -57,15 +57,19 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     // Wait until the RX signal is 0 with timeout
     int rx_level;
+    int sample_count = 0;
     while ((rx_level = gpio_get_level(pin_mdb_rx))) {
         if (esp_timer_get_time() - start_time > timeout_us) {
-            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0, current level: %d", rx_level);
+            ESP_LOGW(TAG, "MDB read timeout waiting for RX=0, current level: %d, samples: %d", rx_level, sample_count);
             return 0xFFFF; // Return error code
         }
-        ESP_LOGD(TAG, "RX pin level: %d", rx_level);
-        vTaskDelay(1); // Yield to other tasks
+        sample_count++;
+        if (sample_count % 1000 == 0) {
+            ESP_LOGD(TAG, "RX pin still high, level: %d, samples: %d", rx_level, sample_count);
+        }
+        ets_delay_us(10); // Sample every 10 microseconds
     }
-    ESP_LOGD(TAG, "RX pin went low, level: %d", rx_level);
+    ESP_LOGI(TAG, "RX pin went low after %d samples, level: %d", sample_count, rx_level);
 
     ets_delay_us(156); // Delay between bits
 
