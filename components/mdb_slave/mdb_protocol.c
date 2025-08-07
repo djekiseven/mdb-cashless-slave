@@ -8,6 +8,11 @@
 #include "freertos/task.h"
 #include "mdb_slave.h"
 #include "mdb_protocol.h"
+#include "driver/gpio.h"
+
+// Макросы для работы с GPIO для MDB
+#define UART_GPIO_SET(pin, level) gpio_set_level(pin, !(level))
+#define UART_GPIO_GET(pin) (!gpio_get_level(pin))
 
 static const char *TAG = "mdb_protocol";
 
@@ -37,11 +42,11 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_pull_mode(pin_mdb_led, GPIO_FLOATING);
 
     // Set initial pin states
-    gpio_set_level(pin_mdb_tx, 1);  // High = floating (pulled up externally)
-    gpio_set_level(pin_mdb_led, 0);
+    UART_GPIO_SET(pin_mdb_tx, 1);  // High = floating (pulled up externally)
+    UART_GPIO_SET(pin_mdb_led, 0);
     
     // Проверка начального состояния пинов
-    int tx_level = gpio_get_level(pin_mdb_tx);
+    int tx_level = UART_GPIO_GET(pin_mdb_tx);
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
     ESP_LOGI(TAG, "TX pin level: %d", tx_level);
 }
@@ -51,13 +56,13 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Ждем idle (физическая 1)
-    while (!gpio_get_level(pin_mdb_rx)) {
+    // Ждем idle 
+    while (!UART_GPIO_GET(pin_mdb_rx)) {
         ets_delay_us(10);
     }
 
-    // Ждем start bit (переход 1->0)
-    while (gpio_get_level(pin_mdb_rx)) {
+    // Ждем start bit 
+    while (UART_GPIO_GET(pin_mdb_rx)) {
         ets_delay_us(10);
     }
     ESP_LOGI(TAG, "Start bit detected");
@@ -71,17 +76,15 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     // Сначала читаем 8 бит данных (MSB first)
     for (uint8_t x = 0; x < 8; x++) {
-        int pin_level = gpio_get_level(pin_mdb_rx);
-        int bit_value = !pin_level;  // Инвертируем: физический 0 -> логическая 1
+        int bit_value = UART_GPIO_GET(pin_mdb_rx);
         data_byte |= (bit_value << (7 - x));  // MSB first
-        ESP_LOGI(TAG, "  Data Bit %d: Physical:%d Logical:%d (after inversion)", 7-x, pin_level, bit_value);
+        ESP_LOGI(TAG, "  Data Bit %d: %d", 7-x, bit_value);
         ets_delay_us(104);
     }
 
     // Затем читаем mode bit
-    int pin_level = gpio_get_level(pin_mdb_rx);
-    mode_bit = !pin_level;  // Инвертируем
-    ESP_LOGI(TAG, "  Mode Bit: Physical:%d Logical:%d (after inversion)", pin_level, mode_bit);
+    mode_bit = UART_GPIO_GET(pin_mdb_rx); 
+    ESP_LOGI(TAG, "  Mode Bit: %d", mode_bit);
     ets_delay_us(104);
 
     // Собираем итоговое значение: mode bit в 9-м бите
@@ -113,28 +116,27 @@ void mdb_write_9(uint16_t nth9)
 
 
 
-    // Start bit (физический 0)
-    gpio_set_level(pin_mdb_tx, 0);  // Логический 1 -> физический 0
+    // Start bit 
+    UART_GPIO_SET(pin_mdb_tx, 0); 
     ets_delay_us(104);
 
     // Отправляем 8 бит данных (MSB first)
     for (uint8_t x = 0; x < 8; x++) {
         int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
-        int pin_level = !bit_value;  // Инвертируем программно
-        gpio_set_level(pin_mdb_tx, pin_level);
+        UART_GPIO_SET(pin_mdb_tx, bit_value);
         ets_delay_us(104);
     }
 
     // Mode bit
-    gpio_set_level(pin_mdb_tx, !mode_bit);  // Инвертируем программно
+    UART_GPIO_SET(pin_mdb_tx, mode_bit);
     ets_delay_us(104);
 
-    // Stop bit (физический 1)
-    gpio_set_level(pin_mdb_tx, 0);  // Логическая 1 -> физическая 0
+    // Stop bit
+    UART_GPIO_SET(pin_mdb_tx, 1);
     ets_delay_us(104);
 
-    // Возврат в idle (физическая 1)
-    gpio_set_level(pin_mdb_tx, 1);  // Логический 0 -> физическая 1
+    // Возврат в idle
+    UART_GPIO_SET(pin_mdb_tx, 0);
     ets_delay_us(104);
 
 }
@@ -155,5 +157,5 @@ void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
 
 void mdb_set_led(bool state)
 {
-    gpio_set_level(pin_mdb_led, state);
+    UART_GPIO_SET(pin_mdb_led, state);
 }
