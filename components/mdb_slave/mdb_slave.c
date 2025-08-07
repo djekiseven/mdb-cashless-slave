@@ -199,10 +199,6 @@ void mdb_cashless_loop(void *pvParameters)
                             ESP_LOGI(TAG, "Reset during VEND_STATE, treating as VEND_SUCCESS");
                         }
 
-                        ESP_LOGI(TAG, "Sending ACK (Data:0x%02X Mode:1) in response to RESET", ACK_DATA);
-                        mdb_write_9(ACK);
-                        ESP_LOGI(TAG, "ACK sent");
-
                         machine_state = INACTIVE_STATE;
                         cashless_reset_todo = true;
                         break;

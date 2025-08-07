@@ -64,7 +64,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     }
     ESP_LOGI(TAG, "Start bit detected");
 
-    ets_delay_us(156); // Delay between bits
+    ets_delay_us(104); // Delay between bits
 
     // Читаем 9 бит
     ESP_LOGI(TAG, "Reading bits:");
@@ -133,7 +133,7 @@ void mdb_write_9(uint16_t nth9)
     ets_delay_us(104);
 
     // Возврат в idle
-    // UART_GPIO_SET(pin_mdb_tx, 0);
+    UART_GPIO_SET(pin_mdb_tx, 0);
     ets_delay_us(104);
 
 }
@@ -142,11 +142,14 @@ void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
 {
     uint8_t checksum = 0;
 
-    // Calculate checksum
+    // Calculate checksum and send data
     for (int x = 0; x < length; x++) {
         checksum += mdb_payload[x];
         mdb_write_9(mdb_payload[x]);
     }
+
+    // Send checksum
+    mdb_write_9(checksum);
 
     // Send checksum with mode bit set
     mdb_write_9(BIT_MODE_SET | checksum);
