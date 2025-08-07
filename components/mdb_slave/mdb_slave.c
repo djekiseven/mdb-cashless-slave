@@ -149,8 +149,8 @@ void mdb_cashless_loop(void *pvParameters)
         // Read from MDB and check if the mode bit is set
         uint16_t coming_read = mdb_read_9(&checksum);
 
-        uint8_t command = coming_read & BIT_CMD_SET;     // Команда в младших битах
-        bool is_address_match = ((coming_read & BIT_ADD_SET) == (0x10 << 3));  // Сравниваем биты адреса без сдвига
+        uint8_t command = coming_read & 0x07;     // Команда в битах 2-0
+        bool is_address_match = ((coming_read & 0xF8) == 0x10);  // Адрес Cashless #1 = 0x10 (00010000B)
 
         ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
                  coming_read,
@@ -178,7 +178,7 @@ void mdb_cashless_loop(void *pvParameters)
                 ESP_LOGI(TAG, "Received RET");
             } else if (data_byte == NAK_DATA) {
                 ESP_LOGI(TAG, "Received NAK");
-            } else if ((coming_read & BIT_ADD_SET) == (0x10 << 3)) {  // Проверяем что это наш адрес
+            } else if ((coming_read & 0xF8) == 0x10) {  // Адрес Cashless #1 = 0x10 (00010000B)
                 // Отправляем ACK на каждую команду для нас
                 ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
                 mdb_write_9(ACK);

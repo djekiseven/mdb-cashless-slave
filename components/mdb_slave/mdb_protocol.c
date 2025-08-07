@@ -67,17 +67,21 @@ uint16_t mdb_read_9(uint8_t *checksum)
 void mdb_write_9(uint16_t nth9)
 {
     ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
-    nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
-
+             nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
+    ESP_LOGW(TAG, "Writing bits:");
     UART_GPIO_SET(pin_mdb_tx, 0); // Start bit = 0
+    ESP_LOGW(TAG, "  Start bit: 0");
     ets_delay_us(104);
-
     for (uint8_t x = 0; x < 9; x++) {
-        UART_GPIO_SET(pin_mdb_tx, !((nth9 >> x) & 1)); // Инвертируем биты из-за физической инверсии UART
+        bool bit = !((nth9 >> x) & 1);
+        UART_GPIO_SET(pin_mdb_tx, bit);
+        ESP_LOGW(TAG, "  Bit %d: %d", x, bit);
         ets_delay_us(104); // 9600bps timing
     }
 
     UART_GPIO_SET(pin_mdb_tx, 1); // Stop bit = 1
+    ESP_LOGW(TAG, "  Stop bit: 1");
+    ESP_LOGW(TAG, "  Stop bit: 1");
     ets_delay_us(104);
 }
 
