@@ -53,40 +53,24 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Ждем idle 
-    while (!UART_GPIO_GET(pin_mdb_rx)) {
-        ets_delay_us(10);
-    }
-
-    // Ждем start bit 
-    while (UART_GPIO_GET(pin_mdb_rx)) {
-        ets_delay_us(10);
-    }
+    // Wait until the RX signal is 0
+    while (UART_GPIO_GET(pin_mdb_rx))
+        ;
     ESP_LOGI(TAG, "Start bit detected");
 
-    ets_delay_us(104); // Delay between bits
+    ets_delay_us(156); // Delay between bits
 
     // Читаем 9 бит
     ESP_LOGI(TAG, "Reading bits:");
-    uint16_t mode_bit = 0;
-    uint8_t data_byte = 0;
-
-    // Сначала читаем 8 бит данных (MSB first)
-    for (uint8_t x = 0; x < 8; x++) {
+    for (uint8_t x = 0; x < 9; x++) {
         int bit_value = UART_GPIO_GET(pin_mdb_rx);
-        data_byte |= (bit_value << (7 - x));  // MSB first
-        ESP_LOGI(TAG, "  Data Bit %d: %d", 7-x, bit_value);
-        ets_delay_us(104);
+        coming_read |= (bit_value << x);
+        ESP_LOGI(TAG, "  Bit %d: %d", x, bit_value);
+        ets_delay_us(104); // 9600bps timing
     }
 
-    // Затем читаем mode bit
-    mode_bit = UART_GPIO_GET(pin_mdb_rx); 
-    ESP_LOGI(TAG, "  Mode Bit: %d", mode_bit);
-    ets_delay_us(104);
-
-    // Собираем итоговое значение: mode bit в 9-м бите
-    coming_read = data_byte | (mode_bit << 8);
-    ESP_LOGI(TAG, "Final value: 0x%03X (Data: 0x%02X, Mode: %d)", coming_read, data_byte, mode_bit);
+    ESP_LOGI(TAG, "Final value: 0x%03X (Data: 0x%02X, Mode: %d)", 
+             coming_read, coming_read & 0xFF, (coming_read >> 8) & 1);
 
     if (checksum)
         *checksum += coming_read;
@@ -96,46 +80,22 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
-    uint8_t data_byte = nth9 & 0xFF;
-    uint8_t mode_bit = (nth9 >> 8) & 1;
+    ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
+             nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
 
-    ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X [0b%d%d%d%d%d%d%d%d], Mode: %d)",
-             nth9, data_byte,
-             (data_byte >> 7) & 1,
-             (data_byte >> 6) & 1,
-             (data_byte >> 5) & 1,
-             (data_byte >> 4) & 1,
-             (data_byte >> 3) & 1,
-             (data_byte >> 2) & 1,
-             (data_byte >> 1) & 1,
-             data_byte & 1,
-             mode_bit);
-
-
-
-    // Start bit 
-    UART_GPIO_SET(pin_mdb_tx, 0); 
+    // Start transmission
+    UART_GPIO_SET(pin_mdb_tx, 0);
     ets_delay_us(104);
 
-    // Отправляем 8 бит данных (MSB first)
-    for (uint8_t x = 0; x < 8; x++) {
-        int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
-        UART_GPIO_SET(pin_mdb_tx, bit_value);
+    // Send 9 bits LSB first
+    for (uint8_t x = 0; x < 9; x++) {
+        UART_GPIO_SET(pin_mdb_tx, (nth9 >> x) & 1);
         ets_delay_us(104);
     }
 
-    // Mode bit
-    UART_GPIO_SET(pin_mdb_tx, mode_bit);
+    // End transmission
+    UART_GPIO_SET(pin_mdb_tx, 1);
     ets_delay_us(104);
-
-    // Stop bit
-    UART_GPIO_SET(pin_mdb_tx, 0);
-    ets_delay_us(104);
-
-    // Возврат в idle
-    UART_GPIO_SET(pin_mdb_tx, 0);
-    ets_delay_us(104);
-
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
@@ -148,10 +108,7 @@ void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
         mdb_write_9(mdb_payload[x]);
     }
 
-    // Send checksum
-    mdb_write_9(checksum);
-
-    // Send checksum with mode bit set
+    // Send checksum with mode bit set (CHK* ACK*)
     mdb_write_9(BIT_MODE_SET | checksum);
 }
 
