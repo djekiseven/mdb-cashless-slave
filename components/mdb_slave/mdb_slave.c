@@ -151,30 +151,9 @@ void mdb_cashless_loop(void *pvParameters)
 
         uint8_t mode_bit = (coming_read & BIT_MODE_SET) ? 1 : 0;
         uint8_t raw_addr = (coming_read & BIT_ADD_SET) >> 3;
-        uint8_t command = coming_read & 0x07;     // Команда в битах 2-0
-        uint8_t masked_addr = coming_read & 0xF8;  // Маскируем биты 7-3
-        bool is_address_match = (masked_addr == 0x80);  // Адрес Cashless #1 = 10000xxxB (из-за LSB->MSB передачи)
+        uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
 
-        ESP_LOGI(TAG, "Raw byte: 0x%03X", coming_read);
-        ESP_LOGI(TAG, "Mode bit: %d", mode_bit);
-        ESP_LOGI(TAG, "Raw address bits: 0x%02X", raw_addr);
-        ESP_LOGI(TAG, "Masked address: 0x%02X (expected 0x80)", masked_addr);
-        ESP_LOGI(TAG, "Command bits: 0x%02X", command);
-        ESP_LOGI(TAG, "Address match: %d", is_address_match);
-
-        ESP_LOGI(TAG, "Bit pattern analysis:");
-        ESP_LOGI(TAG, "  Address bits (7-3): %c%c%c%c%c", 
-            (coming_read & (1 << 7)) ? '1' : '0',
-            (coming_read & (1 << 6)) ? '1' : '0',
-            (coming_read & (1 << 5)) ? '1' : '0',
-            (coming_read & (1 << 4)) ? '1' : '0',
-            (coming_read & (1 << 3)) ? '1' : '0');
-        ESP_LOGI(TAG, "  Command bits (2-0): %c%c%c",
-            (coming_read & (1 << 2)) ? '1' : '0',
-            (coming_read & (1 << 1)) ? '1' : '0',
-            (coming_read & (1 << 0)) ? '1' : '0');
-
-        ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
+        ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
                  coming_read,
                  (coming_read & BIT_MODE_SET) ? 1 : 0,
                  (coming_read & BIT_ADD_SET) >> 3,
@@ -200,8 +179,8 @@ void mdb_cashless_loop(void *pvParameters)
                 ESP_LOGI(TAG, "Received RET");
             } else if (data_byte == NAK_DATA) {
                 ESP_LOGI(TAG, "Received NAK");
-            } else if ((coming_read & 0xF8) == 0x80) {  // Адрес Cashless #1 = 10000xxxB (из-за LSB->MSB передачи)
-                ESP_LOGI(TAG, "Address check (data): masked=0x%02X, expected=0x80, match=1", coming_read & 0xF8);
+            } else if ((coming_read & BIT_ADD_SET) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
+                ESP_LOGI(TAG, "Address match: masked=0x%02X, expected=0x10", coming_read & BIT_ADD_SET);
                 // Отправляем ACK на каждую команду для нас
                 ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
                 mdb_write_9(ACK);
