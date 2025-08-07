@@ -129,11 +129,11 @@ void mdb_write_9(uint16_t nth9)
     ets_delay_us(104);
 
     // Stop bit
-    UART_GPIO_SET(pin_mdb_tx, 1);
+    UART_GPIO_SET(pin_mdb_tx, 0);
     ets_delay_us(104);
 
     // Возврат в idle
-    UART_GPIO_SET(pin_mdb_tx, 0);
+    // UART_GPIO_SET(pin_mdb_tx, 0);
     ets_delay_us(104);
 
 }
