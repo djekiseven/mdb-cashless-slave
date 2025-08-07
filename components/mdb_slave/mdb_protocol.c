@@ -31,9 +31,9 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
-    // Set initial LED state
-    UART_GPIO_SET(pin_mdb_led, 0);
-    
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    UART_GPIO_SET(pin_mdb_rx, 0);
+        
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
 }
 
