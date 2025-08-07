@@ -32,7 +32,7 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
     gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
-    UART_GPIO_SET(pin_mdb_tx, 0);
+    UART_GPIO_SET(pin_mdb_tx, 1);  // TX idle = 1
         
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
 }
@@ -52,7 +52,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
     // Читаем 9 бит
     ESP_LOGI(TAG, "Reading bits:");
     for (uint8_t x = 0; x < 9; x++) {
-        int bit_value = UART_GPIO_GET(pin_mdb_rx);
+        int bit_value = !UART_GPIO_GET(pin_mdb_rx);  // Инвертируем биты из-за физической инверсии UART
         coming_read |= (bit_value << x);
         ESP_LOGI(TAG, "  Bit %d: %d", x, bit_value);
         ets_delay_us(104); // 9600bps timing
@@ -69,15 +69,15 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
     nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
 
-    UART_GPIO_SET(pin_mdb_tx, 0); // Start transmission (0)
+    UART_GPIO_SET(pin_mdb_tx, 0); // Start bit = 0
     ets_delay_us(104);
 
     for (uint8_t x = 0; x < 9; x++) {
-        UART_GPIO_SET(pin_mdb_tx, (nth9 >> x) & 1);
+        UART_GPIO_SET(pin_mdb_tx, !((nth9 >> x) & 1)); // Инвертируем биты из-за физической инверсии UART
         ets_delay_us(104); // 9600bps timing
     }
 
-    UART_GPIO_SET(pin_mdb_tx, 1); // End transmission (idle=1)
+    UART_GPIO_SET(pin_mdb_tx, 1); // Stop bit = 1
     ets_delay_us(104);
 }
 
