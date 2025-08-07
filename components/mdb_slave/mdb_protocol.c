@@ -99,7 +99,7 @@ void mdb_write_9(uint16_t nth9)
     uint8_t data_byte = nth9 & 0xFF;
     uint8_t mode_bit = (nth9 >> 8) & 1;
 
-    ESP_LOGI(TAG, "Writing value: 0x%03X (Data: 0x%02X [0b%d%d%d%d%d%d%d%d], Mode: %d)",
+    ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X [0b%d%d%d%d%d%d%d%d], Mode: %d)",
              nth9, data_byte,
              (data_byte >> 7) & 1,
              (data_byte >> 6) & 1,
@@ -111,11 +111,7 @@ void mdb_write_9(uint16_t nth9)
              data_byte & 1,
              mode_bit);
 
-    // Выключаем логирование для точного тайминга
-    bool old_level = esp_log_level_get(TAG) <= ESP_LOG_INFO;
-    if (old_level) {
-        esp_log_level_set(TAG, ESP_LOG_WARN);
-    }
+
 
     // Start bit (физический 0)
     gpio_set_level(pin_mdb_tx, 0);  // Логический 1 -> физический 0
@@ -141,11 +137,6 @@ void mdb_write_9(uint16_t nth9)
     gpio_set_level(pin_mdb_tx, 1);  // Логический 0 -> физическая 1
     ets_delay_us(104);
 
-    // Возвращаем логирование
-    if (old_level) {
-        esp_log_level_set(TAG, ESP_LOG_INFO);
-        ESP_LOGI(TAG, "Sent value: 0x%03X (Data: 0x%02X, Mode: %d)", nth9, data_byte, mode_bit);
-    }
 }
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
