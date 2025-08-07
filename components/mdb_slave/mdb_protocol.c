@@ -37,7 +37,7 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
     // Configure pull-up/down
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
+    gpio_set_pull_mode(pin_mdb_rx, GPIO_FLOATING);
     gpio_set_pull_mode(pin_mdb_tx, GPIO_FLOATING);
     gpio_set_pull_mode(pin_mdb_led, GPIO_FLOATING);
 
@@ -53,9 +53,15 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Wait until the RX signal is 0
-    while (UART_GPIO_GET(pin_mdb_rx))
-        ;
+    // Ждем пока линия будет в 1
+    while (!UART_GPIO_GET(pin_mdb_rx)) {
+        ets_delay_us(10);
+    }
+
+    // Ждем пока линия перейдет в 0 (start bit)
+    while (UART_GPIO_GET(pin_mdb_rx)) {
+        ets_delay_us(10);
+    }
     ESP_LOGI(TAG, "Start bit detected");
 
     ets_delay_us(156); // Delay between bits
