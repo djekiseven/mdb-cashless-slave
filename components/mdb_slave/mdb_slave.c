@@ -149,15 +149,10 @@ void mdb_cashless_loop(void *pvParameters)
         // Read from MDB and check if the mode bit is set
         uint16_t coming_read = mdb_read_9(&checksum);
 
-        uint8_t mode_bit = (coming_read & BIT_MODE_SET) ? 1 : 0;
-        uint8_t raw_addr = (coming_read & BIT_ADD_SET) >> 3;
         uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
 
-        ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
+        ESP_LOGI(TAG, "Received: 0x%03X (Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]",
                  coming_read,
-                 (coming_read & BIT_MODE_SET) ? 1 : 0,
-                 (coming_read & BIT_ADD_SET) >> 3,
-                 is_address_match ? " [MATCH]" : "",
                  command,
                  // Показываем биты адреса (7-3)
                  (coming_read & (1 << 7)) ? '1' : '0',
