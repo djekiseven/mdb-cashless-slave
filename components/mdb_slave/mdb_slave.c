@@ -14,8 +14,23 @@
 
 static const char *TAG = "mdb_slave";
 
+// State names for logging
+static const char *state_names[] = {
+    "INACTIVE_STATE",
+    "DISABLED_STATE",
+    "ENABLED_STATE",
+    "IDLE_STATE",
+    "VEND_STATE"
+};
+
 // Machine state
 static machine_state_t machine_state = INACTIVE_STATE;
+
+// Function to log state transitions
+static void log_state_transition(machine_state_t old_state, machine_state_t new_state) {
+    ESP_LOGI(TAG, "State transition: %s -> %s", 
+             state_names[old_state], state_names[new_state]);
+}
 
 // Control flags for MDB flows
 static bool session_begin_todo = false;
@@ -173,8 +188,13 @@ void mdb_cashless_loop(void *pvParameters)
             } else if (data_byte == RET_DATA) {
                 ESP_LOGI(TAG, "Received RET");
             } else if (data_byte == NAK_DATA) {
-                ESP_LOGI(TAG, "Received NAK");
-            } else if ((coming_read & BIT_ADD_SET) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
+                ESP_LOGI(TAG, "Received NAK in state %s", state_names[machine_state]);
+                // В состоянии INACTIVE после NAK отправляем ACK
+                if (machine_state == INACTIVE_STATE) {
+                    mdb_write_9(ACK);
+                    ESP_LOGI(TAG, "Sent ACK in response to NAK in INACTIVE state");
+            }
+        } else if ((coming_read & BIT_ADD_SET) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
                 ESP_LOGI(TAG, "Address match: masked=0x%02X, expected=0x10", coming_read & BIT_ADD_SET);
                 // Отправляем ACK на каждую команду для нас
                 ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
@@ -194,8 +214,16 @@ void mdb_cashless_loop(void *pvParameters)
                             ESP_LOGI(TAG, "Reset during VEND_STATE, treating as VEND_SUCCESS");
                         }
 
+                        machine_state_t old_state = machine_state;
                         machine_state = INACTIVE_STATE;
+                        log_state_transition(old_state, machine_state);
                         cashless_reset_todo = true;
+                        
+                        // Отправляем JUST RESET после получения RESET
+                        mdb_payload[0] = JUST_RESET;
+                        mdb_payload[1] = CONFIG_DATA;
+                        mdb_write_payload(mdb_payload, 2);
+                        ESP_LOGI(TAG, "Sent JUST_RESET response");
                         break;
                     }
                     

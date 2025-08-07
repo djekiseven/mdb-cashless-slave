@@ -40,11 +40,17 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
 uint16_t mdb_read_9(uint8_t *checksum)
 {
     uint16_t coming_read = 0;
+    int64_t start_time = esp_timer_get_time();
+    
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Ждем start bit (0)
-    while (UART_GPIO_GET(pin_mdb_rx))
-        ;
+    // Ждем start bit (0) с таймаутом
+    while (UART_GPIO_GET(pin_mdb_rx)) {
+        if (esp_timer_get_time() - start_time > MDB_RESPONSE_TIMEOUT_US) {
+            ESP_LOGW(TAG, "Start bit timeout");
+            return 0xFFFF; // Возвращаем специальное значение для индикации таймаута
+        }
+    }
     ESP_LOGI(TAG, "Start bit detected");
 
     ets_delay_us(156); // Delay between bits
@@ -66,7 +72,7 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
 void mdb_write_9(uint16_t nth9)
 {
-    ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
+    ESP_LOGI(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
              nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
     ESP_LOGW(TAG, "Writing bits:");
     UART_GPIO_SET(pin_mdb_tx, 0); // Start bit = 0
@@ -87,12 +93,21 @@ void mdb_write_9(uint16_t nth9)
 
 void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
 {
+    if (!mdb_payload || length == 0) {
+        ESP_LOGE(TAG, "Invalid payload or length");
+        return;
+    }
+    
     uint8_t checksum = 0;
+    ESP_LOGI(TAG, "Writing payload of length %d:", length);
 
     // Calculate checksum and send data
     for (int x = 0; x < length; x++) {
         checksum += mdb_payload[x];
+        ESP_LOGI(TAG, "  Byte %d: 0x%02X", x, mdb_payload[x]);
         mdb_write_9(mdb_payload[x]);
+        // Небольшая задержка между байтами для надежности
+        ets_delay_us(MDB_BIT_TIME_US);
     }
 
     // Send checksum with mode bit set (CHK* ACK*)
