@@ -11,7 +11,7 @@
 #include "driver/gpio.h"
 
 // Макросы для работы с GPIO для MDB
-#define UART_GPIO_SET(pin, level) gpio_set_level(pin, !(level))
+#define UART_GPIO_SET(pin, level) gpio_set_level(pin, (level))
 #define UART_GPIO_GET(pin) (!gpio_get_level(pin))
 
 static const char *TAG = "mdb_protocol";
