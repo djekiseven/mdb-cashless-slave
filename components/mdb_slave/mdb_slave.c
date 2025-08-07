@@ -155,7 +155,7 @@ void mdb_cashless_loop(void *pvParameters)
         ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
                  coming_read,
                  (coming_read & BIT_MODE_SET) ? 1 : 0,
-                 address,
+                 (coming_read & BIT_ADD_SET) >> 3,
                  is_address_match ? " [MATCH]" : "",
                  command,
                  // Показываем биты адреса (7-3)
