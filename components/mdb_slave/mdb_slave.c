@@ -144,6 +144,9 @@ void mdb_cashless_loop(void *pvParameters)
     uint8_t available_tx = 0;
 
     for (;;) {
+        // Delay between bytes to stabilize the line
+        ets_delay_us(500);
+
         // Checksum calculation
         uint8_t checksum = 0x00;
 

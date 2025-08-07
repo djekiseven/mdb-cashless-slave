@@ -89,18 +89,15 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
              nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
 
-    // Start transmission
-    UART_GPIO_SET(pin_mdb_tx, 0);
+    UART_GPIO_SET(pin_mdb_tx, 0); // Start transmission
     ets_delay_us(104);
 
-    // Send 9 bits LSB first
     for (uint8_t x = 0; x < 9; x++) {
         UART_GPIO_SET(pin_mdb_tx, (nth9 >> x) & 1);
-        ets_delay_us(104);
+        ets_delay_us(104); // 9600bps timing
     }
 
-    // End transmission
-    UART_GPIO_SET(pin_mdb_tx, 1);
+    UART_GPIO_SET(pin_mdb_tx, 1); // End transmission
     ets_delay_us(104);
 }
 
