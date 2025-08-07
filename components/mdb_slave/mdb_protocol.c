@@ -26,23 +26,12 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     pin_mdb_rx = rx_pin;
     pin_mdb_tx = tx_pin;
     pin_mdb_led = led_pin;
-    
-    // Initialize GPIO pins
-    gpio_reset_pin(pin_mdb_rx);
-    gpio_reset_pin(pin_mdb_tx);
-    gpio_reset_pin(pin_mdb_led);
-    
+        
     gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
     gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
-    // Configure pull-up/down
-    gpio_set_pull_mode(pin_mdb_rx, GPIO_FLOATING);
-    gpio_set_pull_mode(pin_mdb_tx, GPIO_FLOATING);
-    gpio_set_pull_mode(pin_mdb_led, GPIO_FLOATING);
-
-    // Set initial pin states
-    UART_GPIO_SET(pin_mdb_tx, 0);
+    // Set initial LED state
     UART_GPIO_SET(pin_mdb_led, 0);
     
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
@@ -53,15 +42,9 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Ждем пока линия будет в 1
-    while (!UART_GPIO_GET(pin_mdb_rx)) {
-        ets_delay_us(10);
-    }
-
-    // Ждем пока линия перейдет в 0 (start bit)
-    while (UART_GPIO_GET(pin_mdb_rx)) {
-        ets_delay_us(10);
-    }
+    // Ждем start bit (переход в 0)
+    while (UART_GPIO_GET(pin_mdb_rx))
+        ;
     ESP_LOGI(TAG, "Start bit detected");
 
     ets_delay_us(156); // Delay between bits
@@ -77,9 +60,6 @@ uint16_t mdb_read_9(uint8_t *checksum)
 
     ESP_LOGI(TAG, "Final value: 0x%03X (Data: 0x%02X, Mode: %d)", 
              coming_read, coming_read & 0xFF, (coming_read >> 8) & 1);
-
-    if (checksum)
-        *checksum += coming_read;
 
     return coming_read;
 }

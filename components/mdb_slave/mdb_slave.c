@@ -3,15 +3,14 @@
  */
 
 #include <string.h>
+#include "esp_log.h"
 #include "freertos/FreeRTOS.h"
 #include "freertos/task.h"
 #include "freertos/queue.h"
-#include "esp_log.h"
+#include "mdb_protocol.h"
+#include "mdb_slave.h"
 #include "esp_timer.h"
 #include "rom/ets_sys.h"
-
-#include "mdb_slave.h"
-#include "mdb_protocol.h"
 
 static const char *TAG = "mdb_slave";
 
@@ -144,9 +143,6 @@ void mdb_cashless_loop(void *pvParameters)
     uint8_t available_tx = 0;
 
     for (;;) {
-        // Delay between bytes to stabilize the line
-        ets_delay_us(500);
-
         // Checksum calculation
         uint8_t checksum = 0x00;
 
