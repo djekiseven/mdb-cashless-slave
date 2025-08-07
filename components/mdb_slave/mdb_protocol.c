@@ -11,8 +11,8 @@
 #include "driver/gpio.h"
 
 // Макросы для работы с GPIO для MDB
-#define UART_GPIO_SET(pin, level) gpio_set_level(pin, (level))
-#define UART_GPIO_GET(pin) (gpio_get_level(pin))
+#define UART_GPIO_SET(pin, level) gpio_set_level(pin, !(level))
+#define UART_GPIO_GET(pin) (!gpio_get_level(pin))
 
 static const char *TAG = "mdb_protocol";
 
@@ -42,8 +42,8 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     ESP_LOGI(TAG, "Waiting for start bit...");
 
-    // Ждем start bit (переход в 0)
-    while (UART_GPIO_GET(pin_mdb_rx))
+    // Ждем start bit
+    while (!UART_GPIO_GET(pin_mdb_rx))
         ;
     ESP_LOGI(TAG, "Start bit detected");
 
@@ -69,7 +69,7 @@ void mdb_write_9(uint16_t nth9)
     ESP_LOGW(TAG, "Writing value: 0x%03X (Data: 0x%02X, Mode: %d)",
              nth9, nth9 & 0xFF, (nth9 >> 8) & 1);
 
-    UART_GPIO_SET(pin_mdb_tx, 0); // Start transmission
+    UART_GPIO_SET(pin_mdb_tx, 1); // Start transmission
     ets_delay_us(104);
 
     for (uint8_t x = 0; x < 9; x++) {
@@ -77,7 +77,7 @@ void mdb_write_9(uint16_t nth9)
         ets_delay_us(104); // 9600bps timing
     }
 
-    UART_GPIO_SET(pin_mdb_tx, 1); // End transmission
+    UART_GPIO_SET(pin_mdb_tx, 0); // End transmission
     ets_delay_us(104);
 }
 
