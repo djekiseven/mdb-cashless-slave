@@ -33,22 +33,19 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
     gpio_reset_pin(pin_mdb_led);
     
     gpio_set_direction(pin_mdb_rx, GPIO_MODE_INPUT);
-    gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT_OD);  // Open-drain output
+    gpio_set_direction(pin_mdb_tx, GPIO_MODE_OUTPUT);
     gpio_set_direction(pin_mdb_led, GPIO_MODE_OUTPUT);
 
     // Configure pull-up/down
     gpio_set_pull_mode(pin_mdb_rx, GPIO_PULLUP_ONLY);
-    gpio_set_pull_mode(pin_mdb_tx, GPIO_FLOATING);       // No internal pull-up
+    gpio_set_pull_mode(pin_mdb_tx, GPIO_FLOATING);
     gpio_set_pull_mode(pin_mdb_led, GPIO_FLOATING);
 
     // Set initial pin states
-    UART_GPIO_SET(pin_mdb_tx, 1);  // High = floating (pulled up externally)
+    UART_GPIO_SET(pin_mdb_tx, 0);
     UART_GPIO_SET(pin_mdb_led, 0);
     
-    // Проверка начального состояния пинов
-    int tx_level = UART_GPIO_GET(pin_mdb_tx);
     ESP_LOGI(TAG, "MDB protocol initialized on pins RX:%d, TX:%d, LED:%d", rx_pin, tx_pin, led_pin);
-    ESP_LOGI(TAG, "TX pin level: %d", tx_level);
 }
 
 uint16_t mdb_read_9(uint8_t *checksum)
