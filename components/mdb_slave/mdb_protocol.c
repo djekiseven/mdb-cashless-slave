@@ -118,27 +118,27 @@ void mdb_write_9(uint16_t nth9)
     }
 
     // Start bit (физический 0)
-    gpio_set_level(pin_mdb_tx, 0);
+    gpio_set_level(pin_mdb_tx, 1);  // Логический 0 -> GPIO 1 -> физический 0
     ets_delay_us(104);
 
     // Отправляем 8 бит данных (MSB first)
     for (uint8_t x = 0; x < 8; x++) {
         int bit_value = (data_byte >> (7 - x)) & 1;  // MSB first
-        int pin_level = !bit_value;  // Инвертируем: логическая 1 -> физический 0
+        int pin_level = !bit_value;  // Инвертируем программно
         gpio_set_level(pin_mdb_tx, pin_level);
         ets_delay_us(104);
     }
 
     // Mode bit
-    gpio_set_level(pin_mdb_tx, !mode_bit);
+    gpio_set_level(pin_mdb_tx, !mode_bit);  // Инвертируем программно
     ets_delay_us(104);
 
-    // Stop bit (физический 0)
-    gpio_set_level(pin_mdb_tx, 0);
+    // Stop bit (физический 1)
+    gpio_set_level(pin_mdb_tx, 0);  // Логическая 1 -> GPIO 0 -> физическая 1
     ets_delay_us(104);
 
     // Возврат в idle (физическая 1)
-    gpio_set_level(pin_mdb_tx, 1);
+    gpio_set_level(pin_mdb_tx, 0);  // Логическая 1 -> GPIO 0 -> физическая 1
     ets_delay_us(104);
 
     // Возвращаем логирование
