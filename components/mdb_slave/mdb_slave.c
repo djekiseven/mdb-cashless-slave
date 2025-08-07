@@ -150,7 +150,9 @@ void mdb_cashless_loop(void *pvParameters)
         uint16_t coming_read = mdb_read_9(&checksum);
 
         uint8_t command = coming_read & 0x07;     // Команда в битах 2-0
-        bool is_address_match = ((coming_read & 0xF8) == 0x10);  // Адрес Cashless #1 = 00010xxxB (10H)
+        uint8_t masked_addr = coming_read & 0xF8;  // Маскируем биты 7-3
+        bool is_address_match = (masked_addr == 0x10);  // Адрес Cashless #1 = 00010xxxB (10H)
+        ESP_LOGI(TAG, "Address check: masked=0x%02X, expected=0x10, match=%d", masked_addr, is_address_match);
 
         ESP_LOGI(TAG, "Received: 0x%03X (Mode:%d, Address:0x%02X%s, Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]", 
                  coming_read,
@@ -179,6 +181,7 @@ void mdb_cashless_loop(void *pvParameters)
             } else if (data_byte == NAK_DATA) {
                 ESP_LOGI(TAG, "Received NAK");
             } else if ((coming_read & 0xF8) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
+                ESP_LOGI(TAG, "Address check (data): masked=0x%02X, expected=0x10, match=1", coming_read & 0xF8);
                 // Отправляем ACK на каждую команду для нас
                 ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
                 mdb_write_9(ACK);
