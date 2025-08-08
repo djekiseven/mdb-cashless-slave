@@ -166,8 +166,12 @@ void mdb_cashless_loop(void *pvParameters)
         
         // Проверяем на сброс шины
         if (coming_read == BUS_RESET) {
-            ESP_LOGI(TAG, "Bus RESET received, returning to INACTIVE state");
+            ESP_LOGI(TAG, "Bus RESET detected, returning to INACTIVE state");
+            machine_state_t old_state = machine_state;
             machine_state = INACTIVE_STATE;
+            log_state_transition(old_state, machine_state);
+            cashless_reset_todo = true;
+            // Не отправляем никакого ответа на сброс шины
             continue;
         }
         
