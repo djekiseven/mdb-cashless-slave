@@ -166,16 +166,15 @@ void mdb_cashless_loop(void *pvParameters)
 
         uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
 
-        ESP_LOGI(TAG, "Received: 0x%03X (Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c]",
+        ESP_LOGI(TAG, "Received: 0x%04X (Command:0x%02X) Bits:[%c%c%c%c%c|%c%c%c%c]",
                  coming_read,
-                 command,
-                 // Показываем биты адреса (7-3)
+                 coming_read & BIT_CMD_SET,
+                 (coming_read & (1 << 8)) ? '1' : '0',
                  (coming_read & (1 << 7)) ? '1' : '0',
                  (coming_read & (1 << 6)) ? '1' : '0',
                  (coming_read & (1 << 5)) ? '1' : '0',
                  (coming_read & (1 << 4)) ? '1' : '0',
                  (coming_read & (1 << 3)) ? '1' : '0',
-                 // Показываем биты команды (2-0)
                  (coming_read & (1 << 2)) ? '1' : '0',
                  (coming_read & (1 << 1)) ? '1' : '0',
                  (coming_read & (1 << 0)) ? '1' : '0');

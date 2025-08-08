@@ -41,23 +41,16 @@ void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin)
 uint16_t mdb_read_9(uint8_t *checksum)
 {
     uint16_t coming_read = 0;
-    int64_t start_time = esp_timer_get_time();
     
-    ESP_LOGI(TAG, "Waiting for start bit...");
-
-    // Ждем start bit (0) с таймаутом
+    // Ждем start bit (0)
     while (UART_GPIO_GET(pin_mdb_rx)) {
-        if (esp_timer_get_time() - start_time > MDB_RESPONSE_TIMEOUT_US) {
-            ESP_LOGW(TAG, "Start bit timeout");
-            return 0xFFFF; // Возвращаем специальное значение для индикации таймаута
-        }
+        // Просто ждем, таймаут не нужен
+        vTaskDelay(1); // Даем другим задачам шанс выполниться
     }
-    ESP_LOGI(TAG, "Start bit detected");
 
     ets_delay_us(156); // Delay between bits
 
     // Читаем 9 бит
-    ESP_LOGI(TAG, "Reading bits:");
     for (uint8_t x = 0; x < 9; x++) {
         int bit_value = !UART_GPIO_GET(pin_mdb_rx);  // Инвертируем биты из-за физической инверсии UART
         coming_read |= (bit_value << x);
