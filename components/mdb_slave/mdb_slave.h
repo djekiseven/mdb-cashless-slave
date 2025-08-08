@@ -8,6 +8,31 @@
 #define RESET           0x00
 #define JUST_RESET      0x00
 #define CONFIG_DATA     0x01
+#define SETUP           0x02
+#define MAX_MIN_PRICES  0x03
+#define POLL            0x04
+#define VEND            0x05
+#define READER          0x06
+#define EXPANSION       0x07
+
+// VEND Subcommands
+#define VEND_REQUEST     0x00
+#define VEND_CANCEL      0x01
+#define VEND_SUCCESS     0x02
+#define VEND_FAILURE     0x03
+#define SESSION_COMPLETE 0x04
+#define CASH_SALE        0x05
+
+// READER Subcommands
+#define READER_DISABLE   0x00
+#define READER_ENABLE    0x01
+#define READER_CANCEL    0x02
+
+// EXPANSION Subcommands
+#define REQUEST_ID       0x00
+
+// Timeouts
+#define TIMEOUT_IDLE_US  3000000  // 3 seconds
 
 // MDB Protocol Constants
 #define ACK_DATA        0x00
