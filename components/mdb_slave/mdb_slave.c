@@ -162,44 +162,21 @@ void mdb_cashless_loop(void *pvParameters)
         uint8_t checksum = 0x00;
 
         // Read from MDB and check if the mode bit is set
-        while (1) {
-            uint16_t coming_read = mdb_read_9(&checksum);
-            
-            // Проверяем на сброс шины
-            if (coming_read == BUS_RESET) {
-                ESP_LOGI(TAG, "Bus RESET received, returning to INACTIVE state");
-                machine_state = INACTIVE_STATE;
-                continue;
-            }
-            
-            uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
-            const char* cmd_name;
-            // Определяем текстовое название команды
-            switch(command) {
-                case RESET: cmd_name = "RESET"; break;
-                case CONFIG_DATA: cmd_name = "CONFIG_DATA"; break;
-                case SETUP: cmd_name = "SETUP"; break;
-                case MAX_MIN_PRICES: cmd_name = "MAX_MIN_PRICES"; break;
-                case POLL: cmd_name = "POLL"; break;
-                case VEND: cmd_name = "VEND"; break;
-                case READER: cmd_name = "READER"; break;
-                case EXPANSION: cmd_name = "EXPANSION"; break;
-                default: cmd_name = "UNKNOWN"; break;
-            }
-
-            ESP_LOGI(TAG, "Received: 0x%04X (Command:%s/0x%02X) Bits:[%c%c%c%c%c|%c%c%c%c]",
-                     coming_read,
-                     cmd_name,
-                     command,
-                     (coming_read & (1 << 8)) ? '1' : '0',
-                     (coming_read & (1 << 7)) ? '1' : '0',
-                     (coming_read & (1 << 6)) ? '1' : '0',
-                     (coming_read & (1 << 5)) ? '1' : '0',
-                     (coming_read & (1 << 4)) ? '1' : '0',
-                     (coming_read & (1 << 3)) ? '1' : '0',
-                     (coming_read & (1 << 2)) ? '1' : '0',
-                     (coming_read & (1 << 1)) ? '1' : '0',
-                     (coming_read & (1 << 0)) ? '1' : '0');
+        uint16_t coming_read = mdb_read_9(&checksum);
+        
+        // Проверяем на сброс шины
+        if (coming_read == BUS_RESET) {
+            ESP_LOGI(TAG, "Bus RESET received, returning to INACTIVE state");
+            machine_state = INACTIVE_STATE;
+            continue;
+        }
+        
+        uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
+        const char* cmd_name;
+        
+        // Определяем текстовое название команды
+        switch(command) {
+            case RESET: cmd_name = "RESET"; break;
             case CONFIG_DATA: cmd_name = "CONFIG_DATA"; break;
             case SETUP: cmd_name = "SETUP"; break;
             case MAX_MIN_PRICES: cmd_name = "MAX_MIN_PRICES"; break;
@@ -214,15 +191,15 @@ void mdb_cashless_loop(void *pvParameters)
                  coming_read,
                  cmd_name,
                  command,
-                 (coming_read & (1 << 8)) ? '1' : '0',
-                 (coming_read & (1 << 7)) ? '1' : '0',
-                 (coming_read & (1 << 6)) ? '1' : '0',
-                 (coming_read & (1 << 5)) ? '1' : '0',
-                 (coming_read & (1 << 4)) ? '1' : '0',
-                 (coming_read & (1 << 3)) ? '1' : '0',
-                 (coming_read & (1 << 2)) ? '1' : '0',
-                 (coming_read & (1 << 1)) ? '1' : '0',
-                 (coming_read & (1 << 0)) ? '1' : '0');
+                 (coming_read & BIT(8)) ? '1' : '0',
+                 (coming_read & BIT(7)) ? '1' : '0',
+                 (coming_read & BIT(6)) ? '1' : '0',
+                 (coming_read & BIT(5)) ? '1' : '0',
+                 (coming_read & BIT(4)) ? '1' : '0',
+                 (coming_read & BIT(3)) ? '1' : '0',
+                 (coming_read & BIT(2)) ? '1' : '0',
+                 (coming_read & BIT(1)) ? '1' : '0',
+                 (coming_read & BIT(0)) ? '1' : '0');
 
         if (coming_read & BIT_MODE_SET) {
             uint8_t data_byte = coming_read & 0xFF;  // Только данные без mode bit
@@ -530,38 +507,42 @@ void mdb_cashless_loop(void *pvParameters)
                         switch (subcommand) {
                             case REQUEST_ID: {
                                 ESP_LOGI(TAG, "[EXPANSION] REQUEST_ID received");
-                                uint8_t manufacturer_code[3];
-                                uint8_t serial_number[12];
-                                uint8_t model_number[12];
+                                uint8_t manufacturer_code[3] = {'W', 'S', 'F'}; // Windsurf
+                                uint8_t serial_number[12] = {'0','0','0','0','0','0','0','0','0','0','0','1'};
+                                uint8_t model_number[12] = {'C','A','S','H','L','E','S','S','0','0','1',' '};
                                 uint8_t software_version[2];
                                 
+                                // Read and ignore VMC data
+                                ESP_LOGI(TAG, "[EXPANSION] Reading VMC identification data:");
+                                ESP_LOGI(TAG, "[EXPANSION] Manufacturer: %c%c%c", manufacturer_code[0], manufacturer_code[1], manufacturer_code[2]);
+                                ESP_LOGI(TAG, "[EXPANSION] Serial: %s", serial_number);
+                                ESP_LOGI(TAG, "[EXPANSION] Model: %s", model_number);
+                                
                                 // Read manufacturer code
+                                ESP_LOGI(TAG, "[EXPANSION] VMC Manufacturer code:");
                                 for (int i = 0; i < 3; i++) {
-                                    manufacturer_code[i] = mdb_read_9(&checksum);
+                                    uint8_t byte = mdb_read_9(&checksum);
+                                    ESP_LOGI(TAG, "  Byte[%d]: 0x%02X ('%c')", i, byte, byte);
                                 }
-                                ESP_LOGI(TAG, "[EXPANSION] Manufacturer code: %c%c%c", 
-                                         manufacturer_code[0], manufacturer_code[1], manufacturer_code[2]);
                                 
                                 // Read serial number
+                                ESP_LOGI(TAG, "[EXPANSION] VMC Serial number:");
                                 for (int i = 0; i < 12; i++) {
-                                    serial_number[i] = mdb_read_9(&checksum);
+                                    uint8_t byte = mdb_read_9(&checksum);
+                                    ESP_LOGI(TAG, "  Byte[%d]: 0x%02X ('%c')", i, byte, byte);
                                 }
-                                char serial_str[13] = {0};
-                                memcpy(serial_str, serial_number, 12);
-                                ESP_LOGI(TAG, "[EXPANSION] Serial number: %s", serial_str);
                                 
                                 // Read model number
+                                ESP_LOGI(TAG, "[EXPANSION] VMC Model number:");
                                 for (int i = 0; i < 12; i++) {
-                                    model_number[i] = mdb_read_9(&checksum);
+                                    uint8_t byte = mdb_read_9(&checksum);
+                                    ESP_LOGI(TAG, "  Byte[%d]: 0x%02X ('%c')", i, byte, byte);
                                 }
-                                char model_str[13] = {0};
-                                memcpy(model_str, model_number, 12);
-                                ESP_LOGI(TAG, "[EXPANSION] Model number: %s", model_str);
                                 
                                 // Prepare and send response
-                                mdb_payload[0] = manufacturer_code[0];  // Manufacturer code
-                                mdb_payload[1] = serial_number[0];     // Serial number
-                                mdb_payload[2] = model_number[0];      // Model number
+                                mdb_payload[0] = manufacturer_code[0];  // W
+                                mdb_payload[1] = serial_number[0];      // 0
+                                mdb_payload[2] = model_number[0];       // C
                                 mdb_payload[3] = 0x01;                 // Software version
                                 
                                 ESP_LOGI(TAG, "[EXPANSION] Sending identification response");
