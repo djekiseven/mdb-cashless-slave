@@ -171,6 +171,7 @@ void mdb_cashless_loop(void *pvParameters)
             case RESET: cmd_name = "RESET"; break;
             case CONFIG_DATA: cmd_name = "CONFIG_DATA"; break;
             case SETUP: cmd_name = "SETUP"; break;
+            case MAX_MIN_PRICES: cmd_name = "MAX_MIN_PRICES"; break;
             case POLL: cmd_name = "POLL"; break;
             case VEND: cmd_name = "VEND"; break;
             case READER: cmd_name = "READER"; break;
@@ -490,8 +491,10 @@ void mdb_cashless_loop(void *pvParameters)
                     }
                     
                     case EXPANSION: {
-                        uint8_t subcommand = mdb_read_9(&checksum);
-                        ESP_LOGI(TAG, "[EXPANSION] Subcommand: 0x%02X", subcommand);
+                        // Для EXPANSION команды нам нужно прочитать второй байт
+                        uint16_t second_byte = mdb_read_9(&checksum);
+                        uint8_t subcommand = second_byte & 0xFF;
+                        ESP_LOGI(TAG, "[EXPANSION] Second byte: 0x%04X, Subcommand: 0x%02X", second_byte, subcommand);
                         
                         switch (subcommand) {
                             case REQUEST_ID: {
