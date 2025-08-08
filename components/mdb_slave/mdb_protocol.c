@@ -60,12 +60,13 @@ static bool is_bus_reset(void) {
         return false;
     }
     
-    // Проверяем длительность стабильного состояния
-    int64_t stable_duration = current_time - last_change_time;
-    if (stable_duration >= 100000) {
-        ESP_LOGW(TAG, "Bus RESET detected! Line held %s for %lld us", 
-                current_state ? "HIGH" : "LOW", stable_duration);
-        return true;
+    // Сброс шины только при длительном LOW
+    if (current_state == 0) {
+        int64_t stable_duration = current_time - last_change_time;
+        if (stable_duration >= 100000) {
+            ESP_LOGW(TAG, "Bus RESET detected! Line held LOW for %lld us", stable_duration);
+            return true;
+        }
     }
     
     return false;
