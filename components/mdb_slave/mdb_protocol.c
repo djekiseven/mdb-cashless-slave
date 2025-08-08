@@ -94,6 +94,12 @@ void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
     
     uint8_t checksum = 0;
     ESP_LOGI(TAG, "Writing payload of length %d:", length);
+    
+    // Подробный лог отправляемых данных
+    ESP_LOGI(TAG, "Payload data:");
+    for (int i = 0; i < length; i++) {
+        ESP_LOGI(TAG, "  Byte[%d]: 0x%02X", i, mdb_payload[i]);
+    }
 
     // Calculate checksum and send data
     for (int x = 0; x < length; x++) {

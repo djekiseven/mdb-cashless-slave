@@ -196,9 +196,9 @@ void mdb_cashless_loop(void *pvParameters)
         } else if ((coming_read & BIT_ADD_SET) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
                 ESP_LOGI(TAG, "Address match: masked=0x%02X, expected=0x10", coming_read & BIT_ADD_SET);
                 // Отправляем ACK на каждую команду для нас
-                ESP_LOGI(TAG, "Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
+                ESP_LOGI(TAG, "[RESPONSE] Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
                 mdb_write_9(ACK);
-                ESP_LOGI(TAG, "ACK sent");
+                ESP_LOGI(TAG, "[RESPONSE] ACK sent successfully");
 
                 // Reset transmission availability
                 available_tx = 0;
@@ -221,8 +221,9 @@ void mdb_cashless_loop(void *pvParameters)
                         // Отправляем JUST RESET после получения RESET
                         mdb_payload[0] = JUST_RESET;
                         mdb_payload[1] = CONFIG_DATA;
+                        ESP_LOGI(TAG, "[RESPONSE] Sending JUST_RESET response: [0x%02X, 0x%02X]", mdb_payload[0], mdb_payload[1]);
                         mdb_write_payload(mdb_payload, 2);
-                        ESP_LOGI(TAG, "Sent JUST_RESET response");
+                        ESP_LOGI(TAG, "[RESPONSE] JUST_RESET response sent successfully");
                         break;
                     }
                     
@@ -248,6 +249,8 @@ void mdb_cashless_loop(void *pvParameters)
                                 mdb_payload[0] = 0x01;        // Reader Config Data
                                 mdb_payload[1] = 1;           // Reader Feature Level
                                 mdb_payload[2] = 0xff;        // Country Code High
+                                ESP_LOGI(TAG, "[RESPONSE] Preparing SETUP response: Config=0x%02X, Level=0x%02X, CountryHigh=0x%02X",
+                                         mdb_payload[0], mdb_payload[1], mdb_payload[2]);
                                 mdb_payload[3] = 0xff;        // Country Code Low
                                 mdb_payload[4] = 1;           // Scale Factor
                                 mdb_payload[5] = 2;           // Decimal Places
