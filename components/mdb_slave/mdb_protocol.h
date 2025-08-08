@@ -4,8 +4,8 @@
 #include "driver/gpio.h"
 
 // MDB Protocol timing constants (in microseconds)
-#define MDB_BIT_TIME_US        104  // 9600 bps
-#define MDB_RESPONSE_TIMEOUT_US 5000 // 5ms timeout
+#define MDB_BIT_TIME_US        104   // 9600 bps
+#define MDB_RESPONSE_TIMEOUT_US 5000000 // 5s timeout
 
 // Function prototypes
 void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin);
