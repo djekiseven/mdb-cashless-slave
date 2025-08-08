@@ -42,17 +42,35 @@ uint16_t mdb_read_9(uint8_t *checksum)
 {
     uint16_t coming_read = 0;
     
-    // Ждем start bit (0)
-    int64_t start_time = esp_timer_get_time();
-    while (UART_GPIO_GET(pin_mdb_rx)) {
+    // Время последнего изменения состояния линии
+    int64_t last_change_time = esp_timer_get_time();
+    int last_state = UART_GPIO_GET(pin_mdb_rx);
+    uint8_t bits_read = 0;
+    uint16_t temp_data = 0;
+    
+    while (1) {
+        int current_state = UART_GPIO_GET(pin_mdb_rx);
         int64_t current_time = esp_timer_get_time();
-        int64_t duration_us = current_time - start_time;
         
-        // Если линия активна более 100 мс - это сброс шины
-        if (duration_us >= 100000) {
-            ESP_LOGW(TAG, "Bus RESET detected! Line held active for %lld us", duration_us);
-            return BUS_RESET;
+        // Проверяем на сброс шины
+        if (current_state == last_state) {
+            int64_t stable_duration = current_time - last_change_time;
+            if (stable_duration >= 100000) {
+                ESP_LOGW(TAG, "Bus RESET detected! Line held %s for %lld us", 
+                        last_state ? "HIGH" : "LOW", stable_duration);
+                return BUS_RESET;
+            }
+        } else {
+            // Состояние изменилось
+            last_change_time = current_time;
+            last_state = current_state;
+            
+            // Если обнаружен start bit (0)
+            if (current_state == 0 && bits_read == 0) {
+                break;  // Выходим для чтения данных
+            }
         }
+        
         vTaskDelay(1); // Даем другим задачам шанс выполниться
     }
 
