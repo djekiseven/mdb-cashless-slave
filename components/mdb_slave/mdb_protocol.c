@@ -43,8 +43,16 @@ uint16_t mdb_read_9(uint8_t *checksum)
     uint16_t coming_read = 0;
     
     // Ждем start bit (0)
+    int64_t start_time = esp_timer_get_time();
     while (UART_GPIO_GET(pin_mdb_rx)) {
-        // Просто ждем, таймаут не нужен
+        int64_t current_time = esp_timer_get_time();
+        int64_t duration_us = current_time - start_time;
+        
+        // Если линия активна более 100 мс - это сброс шины
+        if (duration_us >= 100000) {
+            ESP_LOGW(TAG, "Bus RESET detected! Line held active for %lld us", duration_us);
+            return BUS_RESET;
+        }
         vTaskDelay(1); // Даем другим задачам шанс выполниться
     }
 

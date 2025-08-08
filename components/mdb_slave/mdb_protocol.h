@@ -7,6 +7,9 @@
 #define MDB_BIT_TIME_US        104   // 9600 bps
 #define MDB_RESPONSE_TIMEOUT_US 5000000 // 5s timeout
 
+// Special return values
+#define BUS_RESET 0xFFFF  // Indicates that bus reset was detected
+
 // Function prototypes
 void mdb_protocol_init(gpio_num_t rx_pin, gpio_num_t tx_pin, gpio_num_t led_pin);
 uint16_t mdb_read_9(uint8_t *checksum);
