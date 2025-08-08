@@ -14,6 +14,27 @@
 
 static const char *TAG = "mdb_slave";
 
+// MDB command definitions
+static const uint8_t VEND = 0x03;  // From enum MDB_COMMAND
+static const uint8_t READER = 0x04;
+static const uint8_t EXPANSION = 0x07;
+
+// MDB vend flow definitions
+static const uint8_t VEND_REQUEST = 0x00;  // From enum MDB_VEND_FLOW
+static const uint8_t VEND_CANCEL = 0x01;
+static const uint8_t VEND_SUCCESS = 0x02;
+static const uint8_t VEND_FAILURE = 0x03;
+static const uint8_t SESSION_COMPLETE = 0x04;
+static const uint8_t CASH_SALE = 0x05;
+
+// MDB reader flow definitions
+static const uint8_t READER_DISABLE = 0x00;  // From enum MDB_READER_FLOW
+static const uint8_t READER_ENABLE = 0x01;
+static const uint8_t READER_CANCEL = 0x02;
+
+// MDB expansion flow definitions
+static const uint8_t REQUEST_ID = 0x00;  // From enum MDB_EXPANSION_FLOW
+
 // State names for logging
 static const char *state_names[] = {
     "INACTIVE_STATE",
