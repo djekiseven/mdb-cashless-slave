@@ -169,6 +169,7 @@ void mdb_cashless_loop(void *pvParameters)
         // Определяем текстовое название команды
         switch(command) {
             case RESET: cmd_name = "RESET"; break;
+            case CONFIG_DATA: cmd_name = "CONFIG_DATA"; break;
             case SETUP: cmd_name = "SETUP"; break;
             case POLL: cmd_name = "POLL"; break;
             case VEND: cmd_name = "VEND"; break;
@@ -489,8 +490,12 @@ void mdb_cashless_loop(void *pvParameters)
                     }
                     
                     case EXPANSION: {
-                        switch (mdb_read_9(&checksum)) {
+                        uint8_t subcommand = mdb_read_9(&checksum);
+                        ESP_LOGI(TAG, "[EXPANSION] Subcommand: 0x%02X", subcommand);
+                        
+                        switch (subcommand) {
                             case REQUEST_ID: {
+                                ESP_LOGI(TAG, "[EXPANSION] REQUEST_ID received");
                                 uint8_t manufacturer_code[3];
                                 uint8_t serial_number[12];
                                 uint8_t model_number[12];
@@ -500,22 +505,29 @@ void mdb_cashless_loop(void *pvParameters)
                                 for (int i = 0; i < 3; i++) {
                                     manufacturer_code[i] = mdb_read_9(&checksum);
                                 }
-                                // Отмечаем переменную как намеренно неиспользуемую
-                                (void)manufacturer_code;
+                                ESP_LOGI(TAG, "[EXPANSION] Manufacturer code: %c%c%c", 
+                                         manufacturer_code[0], manufacturer_code[1], manufacturer_code[2]);
                                 
                                 // Read serial number
                                 for (int i = 0; i < 12; i++) {
                                     serial_number[i] = mdb_read_9(&checksum);
                                 }
-                                // Отмечаем переменную как намеренно неиспользуемую
-                                (void)serial_number;
+                                ESP_LOGI(TAG, "[EXPANSION] Serial number received");
                                 
                                 // Read model number
                                 for (int i = 0; i < 12; i++) {
                                     model_number[i] = mdb_read_9(&checksum);
                                 }
-                                // Отмечаем переменную как намеренно неиспользуемую
-                                (void)model_number;
+                                ESP_LOGI(TAG, "[EXPANSION] Model number received");
+                                
+                                // Prepare and send response
+                                mdb_payload[0] = 0x09;  // Manufacturer code
+                                mdb_payload[1] = 0x00;  // Serial number
+                                mdb_payload[2] = 0x00;  // Model number
+                                mdb_payload[3] = 0x01;  // Software version
+                                
+                                ESP_LOGI(TAG, "[EXPANSION] Sending identification response");
+                                mdb_write_payload(mdb_payload, 4);
                                 
                                 // Read software version
                                 for (int i = 0; i < 2; i++) {
