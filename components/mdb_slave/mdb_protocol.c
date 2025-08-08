@@ -93,25 +93,23 @@ void mdb_write_payload(uint8_t *mdb_payload, uint8_t length)
     }
     
     uint8_t checksum = 0;
-    ESP_LOGI(TAG, "Writing payload of length %d:", length);
     
-    // Подробный лог отправляемых данных
-    ESP_LOGI(TAG, "Payload data:");
+    // Сначала отправляем все данные без задержек на логирование
     for (int i = 0; i < length; i++) {
-        ESP_LOGI(TAG, "  Byte[%d]: 0x%02X", i, mdb_payload[i]);
-    }
-
-    // Calculate checksum and send data
-    for (int x = 0; x < length; x++) {
-        checksum += mdb_payload[x];
-        ESP_LOGI(TAG, "  Byte %d: 0x%02X", x, mdb_payload[x]);
-        mdb_write_9(mdb_payload[x]);
-        // Небольшая задержка между байтами для надежности
+        checksum += mdb_payload[i];
+        mdb_write_9(mdb_payload[i]);
         ets_delay_us(MDB_BIT_TIME_US);
     }
 
     // Send checksum with mode bit set (CHK* ACK*)
     mdb_write_9(BIT_MODE_SET | checksum);
+    
+    // Логируем после отправки
+    ESP_LOGI(TAG, "Wrote payload of length %d:", length);
+    for (int i = 0; i < length; i++) {
+        ESP_LOGI(TAG, "[WRITE] Byte[%d]: 0x%02X", i, mdb_payload[i]);
+    }
+    ESP_LOGI(TAG, "[WRITE] Checksum: 0x%02X", checksum);
 }
 
 void mdb_set_led(bool state)

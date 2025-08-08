@@ -166,13 +166,13 @@ void mdb_cashless_loop(void *pvParameters)
 
         uint8_t command = coming_read & BIT_CMD_SET;  // Команда в битах 2-0
         const char* cmd_name;
+        // Определяем текстовое название команды
         switch(command) {
             case RESET: cmd_name = "RESET"; break;
             case SETUP: cmd_name = "SETUP"; break;
             case POLL: cmd_name = "POLL"; break;
             case VEND: cmd_name = "VEND"; break;
             case READER: cmd_name = "READER"; break;
-            case REVALUE: cmd_name = "REVALUE"; break;
             case EXPANSION: cmd_name = "EXPANSION"; break;
             default: cmd_name = "UNKNOWN"; break;
         }
@@ -208,7 +208,7 @@ void mdb_cashless_loop(void *pvParameters)
         } else if ((coming_read & BIT_ADD_SET) == 0x10) {  // Адрес Cashless #1 = 00010xxxB (10H)
                 ESP_LOGI(TAG, "Address match: masked=0x%02X, expected=0x10", coming_read & BIT_ADD_SET);
                 // Отправляем ACK на каждую команду для нас
-                ESP_LOGI(TAG, "[RESPONSE] Sending ACK for command 0x%02X", coming_read & BIT_CMD_SET);
+                ESP_LOGI(TAG, "[RESPONSE] Sending ACK for command %s/0x%02X", cmd_name, command);
                 mdb_write_9(ACK);
                 ESP_LOGI(TAG, "[RESPONSE] ACK sent successfully");
 
@@ -216,7 +216,7 @@ void mdb_cashless_loop(void *pvParameters)
                 available_tx = 0;
                 
                 // Command decoding based on incoming data
-                switch (coming_read & BIT_CMD_SET) {
+                switch (command) {
                     case RESET: {
                         mdb_read_9(NULL);  // Read checksum byte
                         ESP_LOGI(TAG, "MDB: RESET command received");
